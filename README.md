@@ -7,7 +7,7 @@ Custom deformer node. Autodesk® Maya® Plugin.
 
 ## Warning
 CUDA acceleration is <b>not implemented</b> yet!<br/>
-It's the simplest implementation of the algorithm described in the paper from Alias|wavefront "Skinning Characters using Surface-Oriented Free-Form Deformations" even without implementing features described in "Extending the Algorithm" section. It's just an intial version.
+It's the simplest implementation of the algorithm described in the paper from Alias|wavefront "Skinning Characters using Surface-Oriented Free-Form Deformations" even without implementing features described in "Extending the Algorithm" section. It's just an intial version. <b>Boost.Geometry is required</b> to calculate distances from points to control elements.
 
 ### Todos
 <ul>
