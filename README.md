@@ -1,0 +1,19 @@
+WrapCudaDeformer
+=====
+
+Custom deformer node. Autodesk® Maya® Plugin.
+
+![ScreenShot](https://dl.dropboxusercontent.com/u/20988720/CG/wrap_cuda/wrap.png)
+
+## Warning
+CUDA acceleration is <b>not implemented</b> yet!<br/>
+It's the simplest implementation of the algorithm described in the paper from Alias|wavefront "Skinning Characters using Surface-Oriented Free-Form Deformations" even without implementing features described in "Extending the Algorithm" section. It's just an intial version.
+
+### Todos
+<ul>
+	<li>Extend the algorithm using paper mentioned above to make it more intuitive for an artist.</li>
+	<li>Refactore code to use harmonic coordinates instead of mean value coordinates using Pixar's paper "Harmonic Coordinates for Character Articulation".</li>
+	<li>Use CUDA and cuBLAS acceleration to do faster calculations</li>
+</ul>
+
+
