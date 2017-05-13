@@ -3,7 +3,7 @@ WrapCudaDeformer
 
 Custom deformer node. Autodesk® Maya® Plugin.
 
-![ScreenShot](http://mishurov.000webhostapp.com/github/wrap_cuda/wrap.png)
+![ScreenShot](http://mishurov.usite.pro/github/wrap_cuda/wrap.png)
 
 ## Warning
 CUDA acceleration is <b>not implemented</b> yet!<br/>
