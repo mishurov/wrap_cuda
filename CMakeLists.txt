@@ -1,62 +1,70 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.4.1)
 project(wrap_cuda_deformer)
 
-# Find Boost
-find_package(Boost REQUIRED)
-INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
 
-SET(MAYA_VERSION 2014 CACHE STRING "Maya version number")
-SET(SOURCE_FILES "wrap_cuda_deformer.cc" "wrap_cuda_main.cc")
+set(MAYA_VERSION 2017)
+set(CUSTOM_DEFINITIONS "REQUIRE_IOSTREAM;_BOOL")
+set(MAYA_INSTALL_BASE_SUFFIX "")
+set(MAYA_INC_SUFFIX "include")
+set(MAYA_LIB_SUFFIX "lib")
+set(MAYA_INSTALL_BASE_SUFFIX "")
+if(WIN32)
+    set(MAYA_INSTALL_BASE_DEFAULT "C:/Program Files/Autodesk")
+elseif(APPLE)
+    set(MAYA_INSTALL_BASE_DEFAULT /Applications/Autodesk)
+else()
+    set(MAYA_INSTALL_BASE_DEFAULT /usr/autodesk)
+    if(MAYA_VERSION LESS 2016)
+        SET(MAYA_INSTALL_BASE_SUFFIX -x64)
+    endif()
+endif()
+set(MAYA_INSTALL_BASE_PATH ${MAYA_INSTALL_BASE_DEFAULT})
+set(MAYA_LOCATION
+   ${MAYA_INSTALL_BASE_PATH}/maya${MAYA_VERSION}${MAYA_INSTALL_BASE_SUFFIX})
 
-# OS Specific environment setup
-SET(CUSTOM_DEFINITIONS "REQUIRE_IOSTREAM;_BOOL")
-SET(MAYA_INSTALL_BASE_SUFFIX "")
-SET(MAYA_INC_SUFFIX "include")
-SET(MAYA_LIB_SUFFIX "lib")
-IF(WIN32)
-    # Windows
-    SET(MAYA_INSTALL_BASE_DEFAULT "C:/Program Files/Autodesk")
-    SET(CUSTOM_DEFINITIONS "${CUSTOM_DEFINITIONS};NT_PLUGIN")
-ELSEIF(APPLE)
-    # Apple
-    SET(MAYA_INSTALL_BASE_DEFAULT "/Applications/Autodesk")
-    SET(MAYA_INC_SUFFIX "devkit/include")
-    SET(MAYA_LIB_SUFFIX "Maya.app/Contents/MacOS")
-    SET(CUSTOM_DEFINITIONS "${CUSTOM_DEFINITIONS};OSMac_")
-ELSE(WIN32)
-    # Linux
-    SET(MAYA_INSTALL_BASE_DEFAULT "/usr/autodesk")
-    SET(MAYA_INSTALL_BASE_SUFFIX "-x64")
-ENDIF(WIN32)
-
-SET(MAYA_INSTALL_BASE_PATH ${MAYA_INSTALL_BASE_DEFAULT} CACHE STRING
-    "Path containing all your maya installations, like /usr/autodesk or /Applications/Autodesk/")
-
-SET(LIBRARIES ${LIBRARIES} "Foundation" "OpenMaya" "OpenMayaAnim" "OpenMayaUI" "OpenMayaRender" ${OPENGL_LIBRARIES})
-
-SET(_MAYA_LOCATION ${MAYA_INSTALL_BASE_PATH}/maya${MAYA_VERSION}${MAYA_INSTALL_BASE_SUFFIX})
-SET(_PROJECT ${PROJECT_NAME})
-
-INCLUDE_DIRECTORIES(${_MAYA_LOCATION}/${MAYA_INC_SUFFIX} ${OPENGL_INCLUDE_DIRS} ${GLUT_INCLUDE_DIRS})
-
-LINK_DIRECTORIES(${_MAYA_LOCATION}/${MAYA_LIB_SUFFIX})
-
-ADD_LIBRARY(${_PROJECT} SHARED ${SOURCE_FILES})
-TARGET_LINK_LIBRARIES(${_PROJECT} ${LIBRARIES})
-
-SET_TARGET_PROPERTIES(${_PROJECT} PROPERTIES COMPILE_DEFINITIONS "${CUSTOM_DEFINITIONS}")
-SET_TARGET_PROPERTIES(${_PROJECT} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
-SET_TARGET_PROPERTIES(${_PROJECT} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
-
-IF (WIN32)
-    SET_TARGET_PROPERTIES(${_PROJECT} PROPERTIES SUFFIX ".mll" )
-    SET_TARGET_PROPERTIES(${_PROJECT} PROPERTIES LINK_FLAGS "/export:initializePlugin /export:uninitializePlugin" )
-ELSEIF(APPLE)
-    SET_TARGET_PROPERTIES(${_PROJECT} PROPERTIES PREFIX "" )
-    SET_TARGET_PROPERTIES(${_PROJECT} PROPERTIES SUFFIX ".bundle" )
-ELSE(WIN32)
-    SET_TARGET_PROPERTIES(${_PROJECT} PROPERTIES PREFIX "" )
-ENDIF(WIN32)
+find_package(OpenGL REQUIRED)
 
 
+set(SOURCE_FILES
+    "point_to_triangle.cc"
+    "wrap_cuda_deformer.cc"
+    "wrap_cuda_main.cc"
+)
+
+set(LIBRARIES ${LIBRARIES}
+    "Foundation"
+    "OpenMaya"
+    "OpenMayaAnim"
+    "OpenMayaUI"
+    "OpenMayaRender"
+    ${OPENGL_LIBRARIES})
+
+set(_MAYA_LOCATION
+    ${MAYA_INSTALL_BASE_PATH}/maya${MAYA_VERSION}${MAYA_INSTALL_BASE_SUFFIX})
+set(_PROJECT ${PROJECT_NAME})
+
+include_directories(${_MAYA_LOCATION}/${MAYA_INC_SUFFIX}
+                    ${OPENGL_INCLUDE_DIRS} ${GLUT_INCLUDE_DIRS})
+
+link_directories(${_MAYA_LOCATION}/${MAYA_LIB_SUFFIX})
+
+add_library(${_PROJECT} SHARED ${SOURCE_FILES})
+target_link_libraries(${_PROJECT} ${LIBRARIES})
+
+set_target_properties(${_PROJECT} PROPERTIES
+                      COMPILE_DEFINITIONS "${CUSTOM_DEFINITIONS}")
+
+set_target_properties(${_PROJECT} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+set_target_properties(${_PROJECT} PROPERTIES CLEAN_DIRECT_OUTPUT 1)
+
+if(WIN32)
+    set_target_properties(${_PROJECT} PROPERTIES SUFFIX ".mll" )
+    set_target_properties(${_PROJECT} PROPERTIES LINK_FLAGS
+        "/export:initializePlugin /export:uninitializePlugin" )
+elseif(APPLE)
+    set_target_properties(${_PROJECT} PROPERTIES PREFIX "" )
+    set_target_properties(${_PROJECT} PROPERTIES SUFFIX ".bundle" )
+else()
+    set_target_properties(${_PROJECT} PROPERTIES PREFIX "" )
+endif()
 

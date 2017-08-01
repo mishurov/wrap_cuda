@@ -117,16 +117,9 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
     // distance weights and control elements' space coordiantes
     // TODO: "local" as node attribute;
     double local = 3.5;
-
-    typedef boost::geometry::model::point<double, 
-                                          3, 
-                                          boost::geometry::cs::cartesian> bp;
-    bp boost_point;
-    boost::geometry::model::polygon<bp, false> boost_poly;
-    typedef boost::tuple<double, double, double> boost_points_tuple;
-    std::vector<boost_points_tuple> boost_points;
     
     MPoint point;
+	MPoint triangle[3];
 
     unsigned int deformed_points_count = iter_geo.count(&status);
     CHECK_MSTATUS(status);
@@ -139,31 +132,19 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
     for (i = 0; !iter_geo.isDone(); iter_geo.next())
     {
       point = iter_geo.position();
-      boost_point.set<0>(point.x);
-      boost_point.set<1>(point.y);
-      boost_point.set<2>(point.z);
-
       MPointArray contol_space_points(triangles_count);
       weights_sums[i] = 0;
-      
+
       for (unsigned int e = 0; e < triangles_count; e++) {
         unsigned int index_A = triangles_vertices_[e*3];
         unsigned int index_C = triangles_vertices_[e*3+1];
         unsigned int index_B = triangles_vertices_[e*3+2];
 
-        boost_points = boost::assign::tuple_list_of(ref_vertices[index_A].x, 
-                                                    ref_vertices[index_A].y, 
-                                                    ref_vertices[index_A].z)
-                                                   (ref_vertices[index_C].x, 
-                                                    ref_vertices[index_C].y, 
-                                                    ref_vertices[index_C].z)
-                                                   (ref_vertices[index_B].x, 
-                                                    ref_vertices[index_B].y, 
-                                                    ref_vertices[index_B].z);
+		triangle[0] = ref_vertices[index_A];
+		triangle[1] = ref_vertices[index_B];
+		triangle[2] = ref_vertices[index_C];
+        double distance = PointToTriangle(point, triangle);
 
-        boost::geometry::assign_points(boost_poly, boost_points);
-        double distance = boost::geometry::distance(boost_point, boost_poly);
-        
         weights[i][e] = 1 / (1 + pow(distance, local));
         weights_sums[i] += weights[i][e];
 

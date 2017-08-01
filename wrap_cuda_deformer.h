@@ -18,6 +18,7 @@
 #define MAYAPLUGIN_WRAPCUDADEFORMER_H_
 
 #include <math.h>
+#include <vector>
 
 #include <maya/MPxDeformerNode.h> 
 #include <maya/MItGeometry.h>
@@ -33,12 +34,7 @@
 #include <maya/MCallbackIdArray.h>
 #include <maya/MNodeMessage.h>
 
-#include <boost/geometry/geometry.hpp>
-#include <boost/geometry/algorithms/distance.hpp>
-#include <boost/geometry/geometries/polygon.hpp>
-#include <boost/geometry/geometries/point.hpp>
-#include <boost/assign.hpp>
-#include <boost/geometry/geometries/adapted/boost_tuple.hpp>
+#include "point_to_triangle.h"
 
 #define kWrapCudaDeformerID 0x8000C
 
