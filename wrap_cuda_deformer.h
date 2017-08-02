@@ -23,6 +23,7 @@
 #include <maya/MPxDeformerNode.h> 
 #include <maya/MItGeometry.h>
 #include <maya/MFnTypedAttribute.h>
+#include <maya/MFnNumericAttribute.h>
 #include <maya/MFnMesh.h>
 #include <maya/MFnMeshData.h>
 #include <maya/MTypeId.h>
@@ -38,39 +39,40 @@
 
 #define kWrapCudaDeformerID 0x8000C
 
+
 struct PointData {
-  std::vector<double> normalized_weights;
-  MPointArray contol_space_points;
+	std::vector<double> normalized_weights;
+	MPointArray contol_space_points;
 };
 
 class WrapCudaDeformer : public MPxDeformerNode
 {
-  public:
-    WrapCudaDeformer();
-    virtual ~WrapCudaDeformer();
-    virtual void postConstructor(); 
-    static void* creator();
-    static MStatus initialize();
+public:
+	static MTypeId id;
+	static MObject reference_surface_;
+	static MObject driver_surface_;
+	static MObject local_;
 
-    virtual MStatus deform(MDataBlock&, 
-                           MItGeometry&, 
-                           const MMatrix&, 
-                           unsigned int);
+	WrapCudaDeformer();
+	virtual ~WrapCudaDeformer();
+	virtual void postConstructor(); 
+	static void* creator();
+	static MStatus initialize();
 
-  public:
-    static MTypeId id;
-    static MObject reference_surface_;
-    static MObject driver_surface_;
+	virtual MStatus deform(MDataBlock&, 
+						   MItGeometry&, 
+						   const MMatrix&, 
+						   unsigned int);
 
-  private:
-    static void registrationCallback(MObject&, MPlug&, void*);
-    static MMatrixArray controlsMatrices(const MPointArray &, 
-                                         const MIntArray &);
-  private:
-    MCallbackIdArray callback_ids_;
-    bool registration_phase_;
-    MIntArray triangles_vertices_;
-    std::vector<PointData> points_data_;
+private:
+	MCallbackIdArray callback_ids_;
+	bool registration_phase_;
+	MIntArray triangles_vertices_;
+	std::vector<PointData> points_data_;
+
+	static void registrationCallback(MObject&, MPlug&, void*);
+	static MMatrixArray controlsMatrices(const MPointArray &, 
+										 const MIntArray &);
 };
 
 #endif  // MAYAPLUGIN_WRAPCUDADEFORMER_H_

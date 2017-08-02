@@ -14,26 +14,15 @@
  * limitations under the License.
  * ************************************************************************/
 
-#include <maya/MFnPlugin.h>
-#include "wrap_cuda_deformer.h"
-
-
-MStatus initializePlugin(MObject obj)
+global proc TestWrapCuda()
 {
-	MStatus status;
-	MFnPlugin plugin(obj, "Alexander Mishurov", "0.1", "Any");
-	status = plugin.registerNode("wrapCuda",
-							   WrapCudaDeformer::id,
-							   WrapCudaDeformer::creator,
-							   WrapCudaDeformer::initialize,
-							   MPxNode::kDeformerNode);
-	return status;
-}
-
-MStatus uninitializePlugin(MObject obj)
-{
-	MStatus status;
-	MFnPlugin plugin(obj);
-	status = plugin.deregisterNode(WrapCudaDeformer::id);
-	return status;
+  unloadPlugin "wrap_cuda_deformer";
+  loadPlugin "wrap_cuda_deformer";
+  polyCube -depth 2 -height 2 -width 2 -name "testCube";
+  setAttr "testCubeShape.overrideEnabled" 1;
+  setAttr "testCubeShape.overrideShading" 0;
+  polySphere -name "testSphere";
+  select "testSphere";
+  select -add "testCube";
+  CreateWrapCuda;
 }
