@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.4.1)
 project(wrap_cuda_deformer)
 
+# in case a gcc version is too new for cuda
+# cmake -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ .
 
 set(MAYA_VERSION 2017)
 set(CUSTOM_DEFINITIONS "REQUIRE_IOSTREAM;_BOOL")
@@ -22,7 +24,9 @@ set(MAYA_INSTALL_BASE_PATH ${MAYA_INSTALL_BASE_DEFAULT})
 set(MAYA_LOCATION
    ${MAYA_INSTALL_BASE_PATH}/maya${MAYA_VERSION}${MAYA_INSTALL_BASE_SUFFIX})
 
+
 find_package(OpenGL REQUIRED)
+find_package(CUDA REQUIRED)
 
 
 set(SOURCE_FILES
@@ -48,8 +52,11 @@ include_directories(${_MAYA_LOCATION}/${MAYA_INC_SUFFIX}
 
 link_directories(${_MAYA_LOCATION}/${MAYA_LIB_SUFFIX})
 
+cuda_add_library(cuda_ops SHARED "cuda_ops.cu")
+
 add_library(${_PROJECT} SHARED ${SOURCE_FILES})
-target_link_libraries(${_PROJECT} ${LIBRARIES})
+
+target_link_libraries(${_PROJECT} cuda_ops ${LIBRARIES} ${CUDA_LIBRARIES})
 
 set_target_properties(${_PROJECT} PROPERTIES
                       COMPILE_DEFINITIONS "${CUSTOM_DEFINITIONS}")

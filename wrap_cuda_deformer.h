@@ -36,9 +36,9 @@
 #include <maya/MNodeMessage.h>
 
 #include "point_to_triangle.h"
+#include "cuda_ops.h"
 
 #define kWrapCudaDeformerID 0x8000C
-
 
 struct PointData {
 	std::vector<double> normalized_weights;
@@ -73,6 +73,22 @@ private:
 	static void registrationCallback(MObject&, MPlug&, void*);
 	static MMatrixArray controlsMatrices(const MPointArray &, 
 										 const MIntArray &);
+	void computeWeights(MItGeometry& iter_geo,
+						float local,
+						unsigned int deformed_points_count,
+						unsigned int triangles_count,
+						MPointArray& ref_vertices,
+						MMatrixArray& reference_matrices);
+	void computeWeightsCuda(MItGeometry& iter_geo,
+						float local,
+						unsigned int deformed_points_count,
+						unsigned int triangles_count,
+						MPointArray& ref_vertices,
+						MMatrixArray& reference_matrices);
+	void applyWrap(MItGeometry& iter_geo,
+							unsigned int triangles_count,
+							MPointArray& driver_vertices,
+							MMatrixArray& driver_matrices);
 };
 
 #endif  // MAYAPLUGIN_WRAPCUDADEFORMER_H_
