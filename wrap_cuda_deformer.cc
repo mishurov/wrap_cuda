@@ -21,6 +21,7 @@ MTypeId WrapCudaDeformer::id(kWrapCudaDeformerID);
 MObject WrapCudaDeformer::reference_surface_;
 MObject WrapCudaDeformer::driver_surface_;
 MObject WrapCudaDeformer::local_;
+MObject WrapCudaDeformer::cuda_;
 
 WrapCudaDeformer::WrapCudaDeformer() {}
 
@@ -47,7 +48,7 @@ void WrapCudaDeformer::registrationCallback(MObject& node,
 											MPlug& plug, 
 											void* client_data)
 {
-	if (plug == reference_surface_ || plug == local_) {
+	if (plug == cuda_ || plug == reference_surface_ || plug == local_) {
 		WrapCudaDeformer *instance = (WrapCudaDeformer*) client_data;
 		instance->registration_phase_ = true;
 	}
@@ -60,7 +61,8 @@ void* WrapCudaDeformer::creator()
 
 MMatrixArray 
 WrapCudaDeformer::controlsMatrices(const MPointArray &vertices,
-								   const MIntArray &triangles_indices)
+								   const MIntArray &triangles_indices,
+								   bool inverse)
 {
 	unsigned int triangles_count = triangles_indices.length() / 3;
 	MMatrixArray matrices(triangles_count);
@@ -79,7 +81,10 @@ WrapCudaDeformer::controlsMatrices(const MPointArray &vertices,
 								 {e3.x, e3.y, e3.z, 0}, 
 								 {0,    0,    0,    1}};
 		MMatrix matrix(d_matrix);
-		matrices[i] = matrix;
+		if (inverse)
+			matrices[i] = matrix.inverse();
+		else
+			matrices[i] = matrix;
 	}
 	return matrices;
 };
@@ -87,6 +92,7 @@ WrapCudaDeformer::controlsMatrices(const MPointArray &vertices,
 void
 WrapCudaDeformer::computeWeights(MItGeometry& iter_geo,
 								 float local,
+								 double* distances,
 								 unsigned int deformed_points_count,
 								 unsigned int triangles_count,
 								 MPointArray& ref_vertices,
@@ -103,20 +109,12 @@ WrapCudaDeformer::computeWeights(MItGeometry& iter_geo,
 		weights_sums[i] = 0;
 
 		for (unsigned int j = 0; j < triangles_count; j++) {
-			unsigned int index_A = triangles_vertices_[j * 3];
-			unsigned int index_C = triangles_vertices_[j * 3 + 1];
-			unsigned int index_B = triangles_vertices_[j * 3 + 2];
-
-			triangle[0] = ref_vertices[index_A];
-			triangle[1] = ref_vertices[index_B];
-			triangle[2] = ref_vertices[index_C];
-			double distance = PointToTriangle(point, triangle);
+			double distance = distances[i * triangles_count + j];
 
 			weights[i][j] = 1 / (1 + pow(distance, local));
 			weights_sums[i] += weights[i][j];
 
-			MPoint 
-			contol_space_point = point * reference_matrices[j].inverse();
+			MPoint contol_space_point = point * reference_matrices[j];
 			contol_space_points[j] = contol_space_point;
 		}
 		points_data_[i].contol_space_points = contol_space_points;
@@ -126,12 +124,11 @@ WrapCudaDeformer::computeWeights(MItGeometry& iter_geo,
 	iter_geo.reset();
 	for (unsigned int i = 0; !iter_geo.isDone(); iter_geo.next())
 	{
-		std::vector<double> normalized_weights;
-		normalized_weights.clear();
-		for (unsigned int e = 0; e < triangles_count; e++) {
-			normalized_weights.push_back(weights[i][e] / weights_sums[i]);
+		std::vector<double> normalised_weights;
+		for (unsigned int j = 0; j < triangles_count; j++) {
+			normalised_weights.push_back(weights[i][j] / weights_sums[i]);
 		}
-		points_data_[i].normalized_weights = normalized_weights;
+		points_data_[i].normalised_weights = normalised_weights;
 		i++;
 	}
 }
@@ -139,6 +136,7 @@ WrapCudaDeformer::computeWeights(MItGeometry& iter_geo,
 void
 WrapCudaDeformer::computeWeightsCuda(MItGeometry& iter_geo,
 								 	float local,
+								 	double* distances,
 								 	unsigned int deformed_points_count,
 								 	unsigned int triangles_count,
 								 	MPointArray& ref_vertices,
@@ -152,6 +150,7 @@ WrapCudaDeformer::computeWeightsCuda(MItGeometry& iter_geo,
 		deformed_points[i * 3] = iter_point.x;
 		deformed_points[i * 3 + 1] = iter_point.y;
 		deformed_points[i * 3 + 2] = iter_point.z;
+		i++;
 	}
 
 	unsigned int ref_vertices_count = ref_vertices.length();
@@ -173,13 +172,14 @@ WrapCudaDeformer::computeWeightsCuda(MItGeometry& iter_geo,
 		}
 	}
 
-	double normalized_weights[deformed_points_count * triangles_count];
+	double normalised_weights[deformed_points_count * triangles_count];
 	double contol_space_points[deformed_points_count * triangles_count * 3];
 
 	CudaComputeWeights(
-		normalized_weights,
+		normalised_weights,
 		contol_space_points,
 		local,
+		distances,
 		deformed_points,
 		deformed_points_count,
 		triangles_count,
@@ -190,12 +190,29 @@ WrapCudaDeformer::computeWeightsCuda(MItGeometry& iter_geo,
 	);
 
 	for (unsigned int i = 0; i < deformed_points_count; i++) {
+		points_data_[i].normalised_weights.resize(triangles_count);
 		for (unsigned int j = 0; j < triangles_count; j++) {
-			points_data_[i].normalized_weights[j] = normalized_weights[i * j];
+			points_data_[i].normalised_weights[j] = (
+				normalised_weights[i * triangles_count + j]
+			);
+			/*
 			points_data_[i].contol_space_points[j].x = contol_space_points[i * j];
 			points_data_[i].contol_space_points[j].y = contol_space_points[i * j + 1];
 			points_data_[i].contol_space_points[j].z = contol_space_points[i * j + 2];
+			*/
 		}
+	}
+
+	iter_geo.reset();
+	for (unsigned int i = 0; !iter_geo.isDone(); iter_geo.next()) {
+		MPoint point = iter_geo.position();
+		MPointArray contol_space_points(triangles_count);
+		for (unsigned int j = 0; j < triangles_count; j++) {
+			MPoint contol_space_point = point * reference_matrices[j];
+			contol_space_points[j] = contol_space_point;
+		}
+		points_data_[i].contol_space_points = contol_space_points;
+		i++;
 	}
 }
 
@@ -210,9 +227,9 @@ WrapCudaDeformer::applyWrap(MItGeometry& iter_geo,
 	for (unsigned int i = 0; !iter_geo.isDone(); iter_geo.next()) {
 		MPoint point_deformed(0.0, 0.0, 0.0, 1.0);
 		for (unsigned int j = 0; j < triangles_count; j++) {
-			MPoint cp = (points_data_[i].contol_space_points[j] * 
+			MPoint cp = (points_data_[i].contol_space_points[j] *
 						 driver_matrices[j]);
-			cp = cp * points_data_[i].normalized_weights[j];
+			cp = cp * points_data_[i].normalised_weights[j];
 			point_deformed.x += cp.x;
 			point_deformed.y += cp.y;
 			point_deformed.z += cp.z;
@@ -232,6 +249,10 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
 	MStatus status;
 	MDataHandle data_handle;
 
+	data_handle = block.inputValue(cuda_, &status);
+	CHECK_MSTATUS_AND_RETURN_IT(status);
+	bool cuda = data_handle.asBool();
+
 	// Registration phase
 	if (registration_phase_) {
 		data_handle = block.inputValue(reference_surface_, &status);
@@ -250,7 +271,9 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
 
 		unsigned int triangles_count = triangles_vertices_.length() / 3;
 		MMatrixArray reference_matrices(triangles_count);
-		reference_matrices = controlsMatrices(ref_vertices, triangles_vertices_);
+		reference_matrices = controlsMatrices(ref_vertices,
+											  triangles_vertices_,
+											  true);
 
 		data_handle = block.inputValue(local_, &status);
 		CHECK_MSTATUS_AND_RETURN_IT(status);
@@ -264,14 +287,37 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
 
 		points_data_.clear();
 		points_data_.resize(deformed_points_count);
-		
-		computeWeights(iter_geo, local, deformed_points_count,
-					   triangles_count, ref_vertices, reference_matrices);
 
-		/*
-		computeWeightsCuda(iter_geo, local, deformed_points_count,
-					   triangles_count, ref_vertices, reference_matrices);
-		*/
+
+		iter_geo.reset();
+		double distances[deformed_points_count * triangles_count];
+		for (unsigned int i = 0; !iter_geo.isDone(); iter_geo.next()) {
+			MPoint point = iter_geo.position();
+			MPointArray contol_space_points(triangles_count);
+
+			for (unsigned int j = 0; j < triangles_count; j++) {
+				unsigned int index_A = triangles_vertices_[j * 3];
+				unsigned int index_C = triangles_vertices_[j * 3 + 1];
+				unsigned int index_B = triangles_vertices_[j * 3 + 2];
+				MPoint triangle[3];
+				triangle[0] = ref_vertices[index_A];
+				triangle[1] = ref_vertices[index_B];
+				triangle[2] = ref_vertices[index_C];
+				double distance = PointToTriangle(point, triangle);
+				distances[i * triangles_count + j] = distance;
+			}
+			i++;
+		}
+
+		if (cuda) {
+			computeWeightsCuda(iter_geo, local, distances,
+							   deformed_points_count,
+							   triangles_count, ref_vertices,
+							   reference_matrices);
+		} else {
+			computeWeights(iter_geo, local, distances, deformed_points_count,
+						   triangles_count, ref_vertices, reference_matrices);
+		}
 
 		registration_phase_ = false;
 	}
@@ -289,7 +335,9 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
 
 	unsigned int triangles_count = triangles_vertices_.length() / 3;
 	MMatrixArray driver_matrices(triangles_count);
-	driver_matrices = controlsMatrices(driver_vertices, triangles_vertices_);
+	driver_matrices = controlsMatrices(driver_vertices,
+									   triangles_vertices_,
+									   false);
 
 	applyWrap(iter_geo, triangles_count, driver_vertices, driver_matrices);
 
@@ -321,13 +369,21 @@ MStatus WrapCudaDeformer::initialize()
 							  WrapCudaDeformer::outputGeom);
 	CHECK_MSTATUS(status);
 	
-	// Driver local
+	// Local
 	MFnNumericAttribute n_attr;
 	local_ = n_attr.create("local", "local",
 						   MFnNumericData::kFloat, 3.5);
 	status = addAttribute(local_);
 	CHECK_MSTATUS(status);
 	status = attributeAffects(WrapCudaDeformer::local_, 
+							  WrapCudaDeformer::outputGeom);
+
+	// Enable cuda
+	cuda_ = n_attr.create("cuda", "cuda",
+						  MFnNumericData::kBoolean, true);
+	status = addAttribute(cuda_);
+	CHECK_MSTATUS(status);
+	status = attributeAffects(WrapCudaDeformer::cuda_,
 							  WrapCudaDeformer::outputGeom);
 
 	return MStatus::kSuccess;

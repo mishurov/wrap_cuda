@@ -43,6 +43,8 @@ set(LIBRARIES ${LIBRARIES}
     "OpenMayaRender"
     ${OPENGL_LIBRARIES})
 
+set(CUDA_NVCC_FLAGS "-arch=sm_50 -Xcompiler -fPIC")
+
 set(_MAYA_LOCATION
     ${MAYA_INSTALL_BASE_PATH}/maya${MAYA_VERSION}${MAYA_INSTALL_BASE_SUFFIX})
 set(_PROJECT ${PROJECT_NAME})
@@ -52,7 +54,7 @@ include_directories(${_MAYA_LOCATION}/${MAYA_INC_SUFFIX}
 
 link_directories(${_MAYA_LOCATION}/${MAYA_LIB_SUFFIX})
 
-cuda_add_library(cuda_ops SHARED "cuda_ops.cu")
+cuda_add_library(cuda_ops STATIC "cuda_ops.cu")
 
 add_library(${_PROJECT} SHARED ${SOURCE_FILES})
 

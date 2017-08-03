@@ -7,6 +7,7 @@ void CudaComputeWeights(
 	double *normalized_weights,
 	double *contol_space_points,
 	float local,
+	double *distances,
 	double *deformed_points,
 	unsigned int deformed_points_count,
 	unsigned int triangles_count,

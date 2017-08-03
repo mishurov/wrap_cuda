@@ -18,7 +18,7 @@ global proc TestWrapCuda()
 {
   unloadPlugin "wrap_cuda_deformer";
   loadPlugin "wrap_cuda_deformer";
-  polyCube -depth 2 -height 2 -width 2 -name "testCube";
+  polyCube -depth 2.1 -height 2.1 -width 2.1 -name "testCube";
   setAttr "testCubeShape.overrideEnabled" 1;
   setAttr "testCubeShape.overrideShading" 0;
   polySphere -name "testSphere";

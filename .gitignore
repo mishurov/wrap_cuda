@@ -4,5 +4,6 @@ Makefile
 cmake_install.cmake
 *.swp
 *.so
+*.a
 *.plist
 

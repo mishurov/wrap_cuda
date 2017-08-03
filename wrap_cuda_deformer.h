@@ -41,7 +41,7 @@
 #define kWrapCudaDeformerID 0x8000C
 
 struct PointData {
-	std::vector<double> normalized_weights;
+	std::vector<double> normalised_weights;
 	MPointArray contol_space_points;
 };
 
@@ -52,6 +52,7 @@ public:
 	static MObject reference_surface_;
 	static MObject driver_surface_;
 	static MObject local_;
+	static MObject cuda_;
 
 	WrapCudaDeformer();
 	virtual ~WrapCudaDeformer();
@@ -72,15 +73,18 @@ private:
 
 	static void registrationCallback(MObject&, MPlug&, void*);
 	static MMatrixArray controlsMatrices(const MPointArray &, 
-										 const MIntArray &);
+										 const MIntArray &,
+										 bool inverse);
 	void computeWeights(MItGeometry& iter_geo,
 						float local,
+						double* distances,
 						unsigned int deformed_points_count,
 						unsigned int triangles_count,
 						MPointArray& ref_vertices,
 						MMatrixArray& reference_matrices);
 	void computeWeightsCuda(MItGeometry& iter_geo,
 						float local,
+						double* distances,
 						unsigned int deformed_points_count,
 						unsigned int triangles_count,
 						MPointArray& ref_vertices,
