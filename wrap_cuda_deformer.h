@@ -83,16 +83,16 @@ private:
 						MPointArray& ref_vertices,
 						MMatrixArray& reference_matrices);
 	void computeWeightsCuda(MItGeometry& iter_geo,
-						float local,
-						double* distances,
-						unsigned int deformed_points_count,
-						unsigned int triangles_count,
-						MPointArray& ref_vertices,
-						MMatrixArray& reference_matrices);
-	void applyWrap(MItGeometry& iter_geo,
+							float local,
+							double* distances,
+							unsigned int deformed_points_count,
 							unsigned int triangles_count,
-							MPointArray& driver_vertices,
-							MMatrixArray& driver_matrices);
+							MPointArray& ref_vertices,
+							MMatrixArray& reference_matrices);
+	void applyWrap(MItGeometry& iter_geo,
+				   MPointArray& driver_vertices);
+	void applyWrapCuda(MItGeometry& iter_geo,
+					   MPointArray& driver_vertices);
 };
 
 #endif  // MAYAPLUGIN_WRAPCUDADEFORMER_H_
