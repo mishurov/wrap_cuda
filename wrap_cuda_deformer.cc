@@ -281,11 +281,13 @@ WrapCudaDeformer::applyWrapCuda(MItGeometry& iter_geo,
 	double normalised_weights[deformed_points_count * triangles_count];
 	for (unsigned int i = 0; i < deformed_points_count; i++) {
 		for (unsigned int j = 0; j < triangles_count; j++) {
-			unsigned int offset = i * triangles_count + j;
-			normalised_weights[offset] = points_data_[i].normalised_weights[j];
-			cs_points[offset] = points_data_[i].contol_space_points[j].x;
-			cs_points[offset + 1] = points_data_[i].contol_space_points[j].y;
-			cs_points[offset + 2] = points_data_[i].contol_space_points[j].z;
+			unsigned int w_offset = i * triangles_count + j;
+			normalised_weights[w_offset] = points_data_[i].normalised_weights[j];
+
+			unsigned int c_offset = i * triangles_count * 3 + j * 3;
+			cs_points[c_offset] = points_data_[i].contol_space_points[j].x;
+			cs_points[c_offset + 1] = points_data_[i].contol_space_points[j].y;
+			cs_points[c_offset + 2] = points_data_[i].contol_space_points[j].z;
 		}
 	}
 
@@ -293,20 +295,27 @@ WrapCudaDeformer::applyWrapCuda(MItGeometry& iter_geo,
 	driver_matrices = controlsMatrices(driver_vertices,
 									   triangles_vertices_,
 									   false);
-
-	double mats[triangles_count*9];
-	/*
-	for (unsigned int i = 0; i < triangles_count*9; i++) {
+	
+	double mats[triangles_count * 9];
+	for (unsigned int i = 0; i < triangles_count; i++) {
 		unsigned int idx = i * 9;
-		mats[idx] = driver_matrices[i](1, 1);
-		mats[idx + 1] = driver_matrices[i](1, 2);
-		mats[idx + 2] = driver_matrices[i](1, 3);
-		mats[idx + 3] = driver_matrices[i](2, 1);
-		mats[idx + 4] = driver_matrices[i](2, 2);
-		mats[idx + 5] = driver_matrices[i](2, 3);
-		mats[idx + 6] = driver_matrices[i](3, 1);
-		mats[idx + 7] = driver_matrices[i](3, 2);
-		mats[idx + 8] = driver_matrices[i](3, 3);
+		mats[idx] = driver_matrices[i](0, 0);
+		mats[idx + 1] = driver_matrices[i](0, 1);
+		mats[idx + 2] = driver_matrices[i](0, 2);
+		mats[idx + 3] = driver_matrices[i](1, 0);
+		mats[idx + 4] = driver_matrices[i](1, 1);
+		mats[idx + 5] = driver_matrices[i](1, 2);
+		mats[idx + 6] = driver_matrices[i](2, 0);
+		mats[idx + 7] = driver_matrices[i](2, 1);
+		mats[idx + 8] = driver_matrices[i](2, 2);
+	}
+
+	/*
+	for(unsigned int i = 0; i < triangles_count; i++) {
+		unsigned int mat_idx = i * 9;
+		printf("< %i >", i);
+		printf("cuda %f ", mats[mat_idx]);
+		printf("host %f ", driver_matrices[i](0, 0));
 	}
 	*/
 
@@ -324,30 +333,56 @@ WrapCudaDeformer::applyWrapCuda(MItGeometry& iter_geo,
 		mats
 	);
 
+
 	iter_geo.reset();
 	for (unsigned int i = 0; !iter_geo.isDone(); iter_geo.next()) {
 		MPoint point_deformed(0.0, 0.0, 0.0, 1.0);
 		point_deformed.x = out_points[i * 3];
 		point_deformed.y = out_points[i * 3 + 1];
 		point_deformed.z = out_points[i * 3 + 2];
+
 		/*
 		for (unsigned int j = 0; j < triangles_count; j++) {
-			unsigned int idx = j * 9;
 			double d_matrix[4][4] = {{mats[idx], mats[idx+1], mats[idx+2], 0}, 
 									 {mats[idx+3], mats[idx+4], mats[idx+5], 0}, 
 									 {mats[idx+6], mats[idx+7], mats[idx+8], 0}, 
 									 {0,    0,    0,    1}};
 			MMatrix matrix(d_matrix);
+			unsigned int c_offset = i * triangles_count * 3 + j * 3;
+			MPoint cs_point;
+			cs_point.x = cs_points[c_offset];
+			cs_point.y = cs_points[c_offset + 1];
+			cs_point.z = cs_points[c_offset + 2];
 
-			MPoint cp = (points_data_[i].contol_space_points[j] *
-						 matrix);
+			MPoint cp;
+			unsigned int idx = j * 9;
 
-			cp = cp * points_data_[i].normalised_weights[j];
+			cp.x = (
+				mats[idx] * cs_point.x +
+				mats[idx + 3] * cs_point.y + 
+				mats[idx + 6] * cs_point.z
+			);
+			cp.y = (
+				mats[idx + 1] * cs_point.x +
+				mats[idx + 4] * cs_point.y + 
+				mats[idx + 7] * cs_point.z
+			);
+			cp.z = (
+				mats[idx + 2] * cs_point.x +
+				mats[idx + 5] * cs_point.y + 
+				mats[idx + 8] * cs_point.z
+			);
+
+			unsigned int w_offset = i * triangles_count + j;
+			double weight = normalised_weights[w_offset];
+
+			cp = cp * weight;
 			point_deformed.x += cp.x;
 			point_deformed.y += cp.y;
 			point_deformed.z += cp.z;
 		}
 		*/
+		
 		iter_geo.setPosition(point_deformed);
 		i++;
 	}

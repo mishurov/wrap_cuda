@@ -57,25 +57,26 @@ __global__ void normalise_weights(unsigned int deformed_points_count,
 	normalised_weights[offset] = weights[offset] / weights_sums[i];
 };
 
-inline __device__ double3 double3_sub(double3 a, double3 b) {
+__device__ double3 double3_sub(double3 a, double3 b) {
 	return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
-inline __device__ double3 double3_cross(double3 a, double3 b) {
+__device__ double3 double3_cross(double3 a, double3 b) {
 	return make_double3(a.y * b.z - a.z * b.y,
 						a.z * b.x - a.x * b.z,
 						a.x * b.y - a.y * b.x);
 }
 
-inline __device__ double double3_length(double3 a) {
-	return sqrt(a.x * a.x + a.y * a.y + a.z * a.z);
+__device__ double double3_dot(double3 a, double3 b) {
+	return a.x * b.x + a.y * b.y + a.z * b.z;;
 }
 
-inline __device__ double3 double3_double_div(double3 a, double b) {
-	if (b != 0)
-    	return make_double3(a.x / b, a.y / b, a.z / b);
-	else
-    	return make_double3(1, 1, 1);
+__device__ double double3_inv_length(double3 v) {
+	return rsqrt(double3_dot(v, v));
+}
+
+__device__ double3 double3_double_mult(double3 a, double b) {
+    return make_double3(a.x * b, a.y * b, a.z * b);
 }
 
 __global__ void create_def_matrices(
@@ -87,9 +88,9 @@ __global__ void create_def_matrices(
 	unsigned int tri_idx = blockIdx.x * blockDim.x + threadIdx.x;
 	if (tri_idx >= triangles_count)
 		return;
-	unsigned int index_A = triangles_indices[tri_idx * 3];
-	unsigned int index_C = triangles_indices[tri_idx * 3 + 1];
-	unsigned int index_B = triangles_indices[tri_idx * 3 + 2];
+	unsigned int index_A = triangles_indices[tri_idx * 3] * 3;
+	unsigned int index_C = triangles_indices[tri_idx * 3 + 1] * 3;
+	unsigned int index_B = triangles_indices[tri_idx * 3 + 2] * 3;
 		
 	double3 A = make_double3(
 		vertices[index_A],
@@ -109,13 +110,11 @@ __global__ void create_def_matrices(
 	double3 E1 = double3_sub(C, A);
 	double3 E2 = double3_sub(B, A);
 	double3 E1_E2_cross = double3_cross(E1, E2);
-	double3 E3 = double3_double_div(E1_E2_cross, double3_length(E1_E2_cross));
+	double cross_inv_len = double3_inv_length(E1_E2_cross);
 
-	/*
-	E1.x E1.y E1.z,
-	E2.x E2.y E2.z,
-	E3.x E3.y E3.z
-	*/
+	if (isinf(cross_inv_len)) cross_inv_len = 1;
+	double3 E3 = double3_double_mult(E1_E2_cross, cross_inv_len);
+
 	unsigned int mat_idx = tri_idx * 9;
 	res[mat_idx] = E1.x;
 	res[mat_idx + 1] = E1.y;
@@ -128,9 +127,6 @@ __global__ void create_def_matrices(
 	res[mat_idx + 8] = E3.z;
 };
 
-__device__ double3 double3_double_mult(double3 a, double b) {
-    return make_double3(a.x * b, a.y * b, a.z * b);
-}
 
 __device__ double3 double3_add(double3 a, double3 b) {
 	return make_double3(a.x + b.x, a.y + b.y, a.z + b.z);
@@ -148,18 +144,20 @@ __global__ void apply_deform(unsigned int deformed_points_count,
 	unsigned int j = blockIdx.y * blockDim.y + threadIdx.y;
 	if (i >= deformed_points_count || j >= triangles_count)
 		return;
-	unsigned int offset = i * triangles_count + j;
-
+	/*
 	double3 point = make_double3(
 		deformed_points[i],
 		deformed_points[i + 1],
 		deformed_points[i + 2]
 	);
-	double weight = normalised_weights[offset];
+	*/
+	unsigned int w_offset = i * triangles_count + j;
+	unsigned int c_offset = i * triangles_count * 3 + j * 3;
+	double weight = normalised_weights[w_offset];
 	double3 cs_point = make_double3(
-		cs_pts[offset],
-		cs_pts[offset + 1],
-		cs_pts[offset + 2]
+		cs_pts[c_offset],
+		cs_pts[c_offset + 1],
+		cs_pts[c_offset + 2]
 	);
 
 	// multiply by matrix
@@ -167,26 +165,28 @@ __global__ void apply_deform(unsigned int deformed_points_count,
 
 	double x = (
 		mats[idx] * cs_point.x +
-		mats[idx + 1] * cs_point.y +
-		mats[idx + 2] * cs_point.z
+		mats[idx + 3] * cs_point.y +
+		mats[idx + 6] * cs_point.z
 	);
 	double y = (
-		mats[idx + 3] * cs_point.x +
+		mats[idx + 1] * cs_point.x +
 		mats[idx + 4] * cs_point.y +
-		mats[idx + 5] * cs_point.z
+		mats[idx + 7] * cs_point.z
 	);
 	double z = (
-		mats[idx + 6] * cs_point.x +
-		mats[idx + 7] * cs_point.y +
+		mats[idx + 2] * cs_point.x +
+		mats[idx + 5] * cs_point.y +
 		mats[idx + 8] * cs_point.z
 	);
-	double3 control_point = make_double3(x, y, z);
+	double3 control_point = make_double3(
+		x * weight,
+		y * weight,
+		z * weight
+	);
 
-
-	control_point = double3_double_mult(control_point, weight);
-	atomicAdd(&(res_points[i]), control_point.x);
-	atomicAdd(&(res_points[i + 1]), control_point.y);
-	atomicAdd(&(res_points[i + 2]), control_point.z);
+	atomicAdd(&(res_points[i * 3]), control_point.x);
+	atomicAdd(&(res_points[i * 3 + 1]), control_point.y);
+	atomicAdd(&(res_points[i * 3 + 2]), control_point.z);
 };
 
 }
@@ -306,6 +306,7 @@ void CudaApplyDeform(
 	error = cudaMalloc((void **)&d_mats,
 			   sizeof(double) * triangles_count * 9);
 	cudaMemset(d_mats, 0, sizeof(double) * triangles_count * 9);
+	
 	/*
 	if(error != cudaSuccess)
 		printf("mats: %s\n", cudaGetErrorString(error));
@@ -313,7 +314,6 @@ void CudaApplyDeform(
 						sizeof(double) * triangles_count * 9,
 					   cudaMemcpyHostToDevice);
 	*/
-
 	// in vars
 	double *d_cs_points;
 	error = cudaMalloc((void **)&d_cs_points, sizeof(double) * grid_area * 3);
@@ -364,13 +364,14 @@ void CudaApplyDeform(
 		d_driver_vertices_cu,
 		d_mats
 	);
+
 	error = cudaGetLastError();
 	if(error != cudaSuccess)
 		printf("Create def mats: %s\n", cudaGetErrorString(error));
 
 	dim3 threadsPerBlock(8, 8);
-	dim3 numBlocks(deformed_points_count / threadsPerBlock.x,
-				   triangles_count / threadsPerBlock.y);
+	dim3 numBlocks(deformed_points_count / threadsPerBlock.x + 1,
+				   triangles_count / threadsPerBlock.y + 1);
 
 	kernels::apply_deform<<<numBlocks, threadsPerBlock>>>(
 		deformed_points_count,
@@ -388,14 +389,13 @@ void CudaApplyDeform(
 	error = cudaMemcpy(out_points, d_out_points,
 			   sizeof(double) * deformed_points_count * 3,
 			   cudaMemcpyDeviceToHost);
-	
-	if(error != cudaSuccess)
-		printf("Deform DevToHost: %s\n", cudaGetErrorString(error));
 	/*
 	error = cudaMemcpy(mats, d_mats,
 			   sizeof(double) * triangles_count * 9,
 			   cudaMemcpyDeviceToHost);
 	*/
+	if(error != cudaSuccess)
+		printf("Deform DevToHost: %s\n", cudaGetErrorString(error));
 
 	cudaFree(d_out_points);
 	cudaFree(d_mats);
