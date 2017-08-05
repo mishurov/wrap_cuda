@@ -162,11 +162,14 @@ WrapCudaDeformer::computeWeightsCuda(MItGeometry& iter_geo,
 		ref_vertices_cu[i * 3 + 2] = ref_vertices[i].z;
 	}
 
-	unsigned int triangles_vertices[triangles_count * 3];
+	unsigned int triangles_indices[triangles_count * 3];
+	for (unsigned int i = 0; i < triangles_count * 3; i++) {
+		triangles_indices[i] = triangles_vertices_[i];
+	}
+
 	double reference_matrices_cu[triangles_count * 3 * 3];
 	for (unsigned int i = 0; i < triangles_count; i++) {
 		for (unsigned int j = 0; j < 3; j++) {
-			triangles_vertices[i] = triangles_vertices_[i * 3 + j];
 			for (unsigned int k = 0; k < 3; k++) {
 				reference_matrices_cu[(i * 3 + j) * 3 + k] = reference_matrices[i](j, k);
 			}
@@ -184,12 +187,12 @@ WrapCudaDeformer::computeWeightsCuda(MItGeometry& iter_geo,
 		deformed_points,
 		deformed_points_count,
 		triangles_count,
-		triangles_vertices,
+		triangles_indices,
 		ref_vertices_cu,
 		ref_vertices_count,
 		reference_matrices_cu
 	);
-
+	printf("CUDA COMPUTED");
 	for (unsigned int i = 0; i < deformed_points_count; i++) {
 		points_data_[i].normalised_weights.resize(triangles_count);
 		for (unsigned int j = 0; j < triangles_count; j++) {
@@ -203,7 +206,8 @@ WrapCudaDeformer::computeWeightsCuda(MItGeometry& iter_geo,
 			*/
 		}
 	}
-
+	
+	/*
 	iter_geo.reset();
 	for (unsigned int i = 0; !iter_geo.isDone(); iter_geo.next()) {
 		MPoint point = iter_geo.position();
@@ -214,6 +218,17 @@ WrapCudaDeformer::computeWeightsCuda(MItGeometry& iter_geo,
 		}
 		points_data_[i].contol_space_points = contol_space_points;
 		i++;
+	}
+	*/
+	for (unsigned int i = 0; i < deformed_points_count; i++) {
+		MPointArray m_space_points(triangles_count);
+		for (unsigned int j = 0; j < triangles_count; j++) {
+			unsigned int c_offset = i * triangles_count * 3 + j * 3;
+			m_space_points[j].x = contol_space_points[c_offset];
+			m_space_points[j].y = contol_space_points[c_offset + 1];
+			m_space_points[j].z = contol_space_points[c_offset + 2];
+		}
+		points_data_[i].contol_space_points = m_space_points;
 	}
 }
 
