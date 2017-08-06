@@ -83,8 +83,7 @@ __global__ void create_def_matrices(
 			unsigned int triangles_count,
 			unsigned int *triangles_indices,
 			double *vertices,
-			double *res,
-			bool inverse
+			double *res
 ) {
 	unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;
 	if (i >= triangles_count)
@@ -116,57 +115,18 @@ __global__ void create_def_matrices(
 	if (isinf(cross_inv_len)) cross_inv_len = 1;
 	double3 E3 = double3_double_mult(E1_E2_cross, cross_inv_len);
 
-	// store matrices in the column-major order
+	// store matrices in the row-major order
 	unsigned int j = i * 9;
 
-	if (!inverse) {
-		res[j] = E1.x;
-		res[j + 3] = E1.y;
-		res[j + 6] = E1.z;
-		res[j + 1] = E2.x;
-		res[j + 4] = E2.y;
-		res[j + 7] = E2.z;
-		res[j + 2] = E3.x;
-		res[j + 5] = E3.y;
-		res[j + 8] = E3.z;
-	} else {
-		double m_0_0 = E1.x;
-		double m_1_0 = E1.y;
-		double m_2_0 = E1.z;
-		double m_0_1 = E2.x;
-		double m_1_1 = E2.y;
-		double m_2_1 = E2.z;
-		double m_0_2 = E3.x;
-		double m_1_2 = E3.y;
-		double m_2_2 = E3.z;
-
-		double det = (
-			m_0_0 * (m_1_1 * m_2_2 - m_2_1 * m_1_2) -
-			m_0_1 * (m_1_0 * m_2_2 - m_1_2 * m_2_0) +
-			m_0_2 * (m_1_0 * m_2_1 - m_1_1 * m_2_0)
-		);
-		double invdet = 1 / det;
-	
-		double res_0_0 = (m_1_1 * m_2_2 - m_2_1 * m_1_2) * invdet;
-		double res_0_1 = (m_0_2 * m_2_1 - m_0_1 * m_2_2) * invdet;
-		double res_0_2 = (m_0_1 * m_1_2 - m_0_2 * m_1_1) * invdet;
-		double res_1_0 = (m_1_2 * m_2_0 - m_1_0 * m_2_2) * invdet;
-		double res_1_1 = (m_0_0 * m_2_2 - m_0_2 * m_2_0) * invdet;
-		double res_1_2 = (m_1_0 * m_0_2 - m_0_0 * m_1_2) * invdet;
-		double res_2_0 = (m_1_0 * m_2_1 - m_2_0 * m_1_1) * invdet;
-		double res_2_1 = (m_2_0 * m_0_1 - m_0_0 * m_2_1) * invdet;
-		double res_2_2 = (m_0_0 * m_1_1 - m_1_0 * m_0_1) * invdet;
-	
-		res[j] = res_0_0;
-		res[j + 3] = res_0_1;
-		res[j + 6] = res_0_2;
-		res[j + 1] = res_1_0;
-		res[j + 4] = res_1_1;
-		res[j + 7] = res_1_2;
-		res[j + 2] = res_2_0;
-		res[j + 5] = res_2_1;
-		res[j + 8] = res_2_2;
-	}
+	res[j] = E1.x;
+	res[j + 1] = E1.y;
+	res[j + 2] = E1.z;
+	res[j + 3] = E2.x;
+	res[j + 4] = E2.y;
+	res[j + 5] = E2.z;
+	res[j + 6] = E3.x;
+	res[j + 7] = E3.y;
+	res[j + 8] = E3.z;
 };
 
 
@@ -206,17 +166,17 @@ __global__ void apply_deform(unsigned int deformed_points_count,
 	unsigned int k = j * 9;
 	double x = (
 		mats[k + 0] * cs_point.x +
-		mats[k + 1] * cs_point.y +
-		mats[k + 2] * cs_point.z
+		mats[k + 3] * cs_point.y +
+		mats[k + 6] * cs_point.z
 	);
 	double y = (
-		mats[k + 3] * cs_point.x +
+		mats[k + 1] * cs_point.x +
 		mats[k + 4] * cs_point.y +
-		mats[k + 5] * cs_point.z
+		mats[k + 7] * cs_point.z
 	);
 	double z = (
-		mats[k + 6] * cs_point.x +
-		mats[k + 7] * cs_point.y +
+		mats[k + 2] * cs_point.x +
+		mats[k + 5] * cs_point.y +
 		mats[k + 8] * cs_point.z
 	);
 	double3 control_point = make_double3(
@@ -250,17 +210,17 @@ __global__ void compute_cs_points(unsigned int deformed_points_count,
 	unsigned int k = j * 9;
 	double x = (
 		mats[k + 0] * point.x +
-		mats[k + 1] * point.y +
-		mats[k + 2] * point.z
+		mats[k + 3] * point.y +
+		mats[k + 6] * point.z
 	);
 	double y = (
-		mats[k + 3] * point.x +
+		mats[k + 1] * point.x +
 		mats[k + 4] * point.y +
-		mats[k + 5] * point.z
+		mats[k + 7] * point.z
 	);
 	double z = (
-		mats[k + 6] * point.x +
-		mats[k + 7] * point.y +
+		mats[k + 2] * point.x +
+		mats[k + 5] * point.y +
 		mats[k + 8] * point.z
 	);
 
@@ -351,7 +311,9 @@ void CudaComputeWeights(
 	double *d_mats;
 	error = cudaMalloc((void **)&d_mats,
 			   sizeof(double) * triangles_count * 9);
-	cudaMemset(d_mats, 0, sizeof(double) * triangles_count * 9);
+	error = cudaMemcpy(d_mats, reference_matrices_cu,
+					   sizeof(double) * triangles_count * 9,
+					   cudaMemcpyHostToDevice);
 
 	double *d_cs_points;
 	error = cudaMalloc((void **)&d_cs_points, sizeof(double) * grid_area * 3);
@@ -361,14 +323,14 @@ void CudaComputeWeights(
 	if(error != cudaSuccess)
 		printf("cpy drv verts: %s\n", cudaGetErrorString(error));
 	
+	/*
 	dim3 threadsMatPerBlock(64, 1);
 	dim3 numMatBlocks(triangles_count / threadsMatPerBlock.x + 1, 1);
 	kernels::create_def_matrices<<<numMatBlocks, threadsMatPerBlock>>>(
 		triangles_count,
 		d_triangles_indices,
 		d_ref_vertices_cu,
-		d_mats,
-		true
+		d_mats
 	);
 	if(error != cudaSuccess)
 		printf("create_def_matrices: %s\n", cudaGetErrorString(error));
@@ -377,6 +339,7 @@ void CudaComputeWeights(
 		deformed_points_count, triangles_count, d_points,
 		d_mats, d_cs_points 
 	);
+	*/
 
 	kernels::compute_weights<<<numBlocks, threadsPerBlock>>>(
 		local, d_distances, deformed_points_count, triangles_count, d_weights, d_weights_sums
@@ -446,20 +409,16 @@ void CudaApplyDeform(
 	cudaMemset(d_out_points, 0, sizeof(double) * deformed_points_count * 3);
 	if(error != cudaSuccess)
 		printf("outs: %s\n", cudaGetErrorString(error));
-	
-	// internal vars
+
 	double *d_mats;
 	error = cudaMalloc((void **)&d_mats,
 			   sizeof(double) * triangles_count * 9);
-	cudaMemset(d_mats, 0, sizeof(double) * triangles_count * 9);
-	
-	/*
 	if(error != cudaSuccess)
 		printf("mats: %s\n", cudaGetErrorString(error));
 	error = cudaMemcpy(d_mats, mats,
 						sizeof(double) * triangles_count * 9,
 					   cudaMemcpyHostToDevice);
-	*/
+
 	// in vars
 	double *d_cs_points;
 	error = cudaMalloc((void **)&d_cs_points, sizeof(double) * grid_area * 3);
@@ -473,6 +432,15 @@ void CudaApplyDeform(
 					   cudaMemcpyHostToDevice);
 	if(error != cudaSuccess)
 		printf("cpy pts: %s\n", cudaGetErrorString(error));
+	
+	double *d_normalised_weights;
+	error = cudaMalloc((void **)&d_normalised_weights,
+					   sizeof(double) * grid_area);
+	error = cudaMemcpy(d_normalised_weights, normalised_weights,
+					   sizeof(double) * grid_area,
+					   cudaMemcpyHostToDevice);
+	if(error != cudaSuccess)
+		printf("cpy norm weights: %s\n", cudaGetErrorString(error));
 
 	unsigned int *d_triangles_indices;
 	error = cudaMalloc((void **)&d_triangles_indices,
@@ -491,16 +459,8 @@ void CudaApplyDeform(
 					   cudaMemcpyHostToDevice);
 	if(error != cudaSuccess)
 		printf("cpy drv verts: %s\n", cudaGetErrorString(error));
-
-	double *d_normalised_weights;
-	error = cudaMalloc((void **)&d_normalised_weights,
-					   sizeof(double) * grid_area);
-	error = cudaMemcpy(d_normalised_weights, normalised_weights,
-					   sizeof(double) * grid_area,
-					   cudaMemcpyHostToDevice);
-	if(error != cudaSuccess)
-		printf("cpy norm weights: %s\n", cudaGetErrorString(error));
 	
+	/*
 	dim3 threadsMatPerBlock(64, 1);
 	dim3 numMatBlocks(triangles_count / threadsMatPerBlock.x + 1, 1);
 
@@ -508,10 +468,9 @@ void CudaApplyDeform(
 		triangles_count,
 		d_triangles_indices,
 		d_driver_vertices_cu,
-		d_mats,
-		false
+		d_mats
 	);
-
+	*/
 	error = cudaGetLastError();
 	if(error != cudaSuccess)
 		printf("Create def mats: %s\n", cudaGetErrorString(error));

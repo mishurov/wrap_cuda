@@ -35,6 +35,9 @@
 #include <maya/MCallbackIdArray.h>
 #include <maya/MNodeMessage.h>
 
+#include <maya/MThreadUtils.h>
+#include <tbb/tbb.h>
+
 #include "point_to_triangle.h"
 #include "cuda_ops.h"
 
@@ -75,14 +78,14 @@ private:
 	static MMatrixArray controlsMatrices(const MPointArray &, 
 										 const MIntArray &,
 										 bool inverse);
-	void computeWeights(MItGeometry& iter_geo,
+	void computeWeights(MPointArray& deformed_points,
 						float local,
 						double* distances,
 						unsigned int deformed_points_count,
 						unsigned int triangles_count,
 						MPointArray& ref_vertices,
 						MMatrixArray& reference_matrices);
-	void computeWeightsCuda(MItGeometry& iter_geo,
+	void computeWeightsCuda(MPointArray& deformed_points,
 							float local,
 							double* distances,
 							unsigned int deformed_points_count,
@@ -90,8 +93,10 @@ private:
 							MPointArray& ref_vertices,
 							MMatrixArray& reference_matrices);
 	void applyWrap(MItGeometry& iter_geo,
+				   MPointArray& deformed_points,
 				   MPointArray& driver_vertices);
 	void applyWrapCuda(MItGeometry& iter_geo,
+					   MPointArray& deformed_points,
 					   MPointArray& driver_vertices);
 };
 
