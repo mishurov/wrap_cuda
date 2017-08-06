@@ -178,6 +178,7 @@ WrapCudaDeformer::computeWeightsCuda(MPointArray& deformed_points,
 	double normalised_weights[deformed_points_count * triangles_count];
 	double contol_space_points[deformed_points_count * triangles_count * 3];
 
+	/*
 	CudaComputeWeights(
 		normalised_weights,
 		contol_space_points,
@@ -191,6 +192,9 @@ WrapCudaDeformer::computeWeightsCuda(MPointArray& deformed_points,
 		ref_vertices_count,
 		mats
 	);
+	*/
+
+
 	for (unsigned int i = 0; i < deformed_points_count; i++) {
 		points_data_[i].normalised_weights.resize(triangles_count);
 		for (unsigned int j = 0; j < triangles_count; j++) {
@@ -333,6 +337,7 @@ WrapCudaDeformer::applyWrapCuda(MItGeometry& iter_geo,
 	*/
 
 	double out_points[deformed_points_count * 3];
+	/*
 	CudaApplyDeform(
 		out_points,
 		cs_points,
@@ -345,7 +350,7 @@ WrapCudaDeformer::applyWrapCuda(MItGeometry& iter_geo,
 		normalised_weights,
 		mats
 	);
-
+	*/
 	for (unsigned int i = 0; i < deformed_points_count; i++) {
 		MPoint point_deformed(0.0, 0.0, 0.0, 1.0);
 		point_deformed.x = out_points[i * 3];
@@ -452,6 +457,33 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
 
 
 		double distances[deformed_points_count * triangles_count];
+
+
+		tbb::parallel_for(
+			tbb::blocked_range<size_t>(0, deformed_points_count, 1),
+			[&](const tbb::blocked_range<size_t> &r) { 
+        	for (size_t i = r.begin(); i != r.end(); ++i) {
+
+				MPoint point = deformed_points[i];
+				MPointArray contol_space_points(triangles_count);
+
+				for (unsigned int j = 0; j < triangles_count; j++) {
+					unsigned int index_A = triangles_vertices_[j * 3];
+					unsigned int index_C = triangles_vertices_[j * 3 + 1];
+					unsigned int index_B = triangles_vertices_[j * 3 + 2];
+					MPoint triangle[3];
+					triangle[0] = ref_vertices[index_A];
+					triangle[1] = ref_vertices[index_B];
+					triangle[2] = ref_vertices[index_C];
+					double distance = PointToTriangle(point, triangle);
+					distances[i * triangles_count + j] = distance;
+				}
+        	}
+		});
+
+
+
+		/*
 		for (unsigned int i = 0; i < deformed_points_count; i++) {
 			MPoint point = deformed_points[i];
 			MPointArray contol_space_points(triangles_count);
@@ -468,7 +500,7 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
 				distances[i * triangles_count + j] = distance;
 			}
 		}
-
+		*/
 		if (cuda) {
 			computeWeightsCuda(deformed_points, local, distances,
 							   deformed_points_count,
@@ -537,7 +569,7 @@ MStatus WrapCudaDeformer::initialize()
 
 	// Enable cuda
 	cuda_ = n_attr.create("cuda", "cuda",
-						  MFnNumericData::kBoolean, true);
+						  MFnNumericData::kBoolean, false);
 	status = addAttribute(cuda_);
 	CHECK_MSTATUS(status);
 	status = attributeAffects(WrapCudaDeformer::cuda_,

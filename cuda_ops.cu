@@ -112,7 +112,7 @@ __global__ void create_def_matrices(
 	double3 E1_E2_cross = double3_cross(E1, E2);
 	double cross_inv_len = double3_inv_length(E1_E2_cross);
 
-	if (isinf(cross_inv_len)) cross_inv_len = 1;
+	//if (isinf(cross_inv_len)) cross_inv_len = 1;
 	double3 E3 = double3_double_mult(E1_E2_cross, cross_inv_len);
 
 	// store matrices in the row-major order

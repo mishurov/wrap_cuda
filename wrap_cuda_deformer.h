@@ -39,7 +39,7 @@
 #include <tbb/tbb.h>
 
 #include "point_to_triangle.h"
-#include "cuda_ops.h"
+//#include "cuda_ops.h"
 
 #define kWrapCudaDeformerID 0x8000C
 

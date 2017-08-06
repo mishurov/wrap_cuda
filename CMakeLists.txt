@@ -43,6 +43,9 @@ set(LIBRARIES ${LIBRARIES}
     "OpenMayaRender"
     ${OPENGL_LIBRARIES})
 
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+
 set(CUDA_NVCC_FLAGS "-arch=sm_50 -Xcompiler -fPIC")
 
 set(_MAYA_LOCATION
@@ -54,11 +57,12 @@ include_directories(${_MAYA_LOCATION}/${MAYA_INC_SUFFIX}
 
 link_directories(${_MAYA_LOCATION}/${MAYA_LIB_SUFFIX})
 
-cuda_add_library(cuda_ops STATIC "cuda_ops.cu")
+#cuda_add_library(cuda_ops STATIC "cuda_ops.cu")
 
 add_library(${_PROJECT} SHARED ${SOURCE_FILES})
 
-target_link_libraries(${_PROJECT} cuda_ops ${LIBRARIES} ${CUDA_LIBRARIES})
+#target_link_libraries(${_PROJECT} cuda_ops ${LIBRARIES} ${CUDA_LIBRARIES})
+target_link_libraries(${_PROJECT} ${LIBRARIES})
 
 set_target_properties(${_PROJECT} PROPERTIES
                       COMPILE_DEFINITIONS "${CUSTOM_DEFINITIONS}")
