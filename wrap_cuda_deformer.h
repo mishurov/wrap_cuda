@@ -59,14 +59,14 @@ public:
 
 	WrapCudaDeformer();
 	virtual ~WrapCudaDeformer();
-	virtual void postConstructor(); 
+	virtual void postConstructor();
 	static void* creator();
 	static MStatus initialize();
 
-	virtual MStatus deform(MDataBlock&, 
-						   MItGeometry&, 
-						   const MMatrix&, 
-						   unsigned int);
+	virtual MStatus deform(MDataBlock&,
+				MItGeometry&,
+				const MMatrix&,
+				unsigned int);
 
 private:
 	MCallbackIdArray callback_ids_;
@@ -76,28 +76,27 @@ private:
 
 	static void registrationCallback(MObject&, MPlug&, void*);
 	static MMatrixArray controlsMatrices(const MPointArray &, 
-										 const MIntArray &,
-										 bool inverse);
+					const MIntArray &,
+					bool inverse);
 	void computeWeights(MPointArray& deformed_points,
-						float local,
-						double* distances,
-						unsigned int deformed_points_count,
-						unsigned int triangles_count,
-						MPointArray& ref_vertices,
-						MMatrixArray& reference_matrices);
+			float local,
+			double* distances,
+			unsigned int deformed_points_count,
+			unsigned int triangles_count,
+			MPointArray& ref_vertices,
+			MMatrixArray& reference_matrices);
 	void computeWeightsCuda(MPointArray& deformed_points,
-							float local,
-							double* distances,
-							unsigned int deformed_points_count,
-							unsigned int triangles_count,
-							MPointArray& ref_vertices,
-							MMatrixArray& reference_matrices);
+				float local,
+				double* distances,
+				unsigned int deformed_points_count,
+				unsigned int triangles_count,
+				MPointArray& ref_vertices);
 	void applyWrap(MItGeometry& iter_geo,
-				   MPointArray& deformed_points,
-				   MPointArray& driver_vertices);
+			MPointArray& deformed_points,
+			MPointArray& driver_vertices);
 	void applyWrapCuda(MItGeometry& iter_geo,
-					   MPointArray& deformed_points,
-					   MPointArray& driver_vertices);
+			MPointArray& deformed_points,
+			MPointArray& driver_vertices);
 };
 
 #endif  // MAYAPLUGIN_WRAPCUDADEFORMER_H_

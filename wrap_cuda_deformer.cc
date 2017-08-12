@@ -35,18 +35,18 @@ void WrapCudaDeformer::postConstructor()
 	MStatus status;
 	MObject o_node = thisMObject();
 	MCallbackId callback_id;
-	callback_id = MNodeMessage::addNodeDirtyPlugCallback(o_node, 
-														 registrationCallback, 
-														 this,
-														 &status);
+	callback_id = MNodeMessage::addNodeDirtyPlugCallback(o_node,
+						 	registrationCallback,
+						 	this,
+						 	&status);
 	CHECK_MSTATUS(status);
 	callback_ids_.append(callback_id);
 	registration_phase_ = true;
 }
 
 void WrapCudaDeformer::registrationCallback(MObject& node,
-											MPlug& plug, 
-											void* client_data)
+					MPlug& plug,
+					void* client_data)
 {
 	if (plug == cuda_ || plug == reference_surface_ || plug == local_) {
 		WrapCudaDeformer *instance = (WrapCudaDeformer*) client_data;
@@ -61,8 +61,8 @@ void* WrapCudaDeformer::creator()
 
 MMatrixArray
 WrapCudaDeformer::controlsMatrices(const MPointArray &vertices,
-								   const MIntArray &triangles_indices,
-								   bool inverse)
+				const MIntArray &triangles_indices,
+				bool inverse)
 {
 	unsigned int triangles_count = triangles_indices.length() / 3;
 	MMatrixArray matrices(triangles_count);
@@ -76,10 +76,10 @@ WrapCudaDeformer::controlsMatrices(const MPointArray &vertices,
 		MVector e1_e2_cross_product = e1 ^ e2;
 		MVector e3 = e1_e2_cross_product / e1_e2_cross_product.length();
 
-		double d_matrix[4][4] = {{e1.x, e1.y, e1.z, 0}, 
-								 {e2.x, e2.y, e2.z, 0}, 
-								 {e3.x, e3.y, e3.z, 0}, 
-								 {0,    0,    0,    1}};
+		double d_matrix[4][4] = {{e1.x, e1.y, e1.z, 0},
+					{e2.x, e2.y, e2.z, 0},
+					{e3.x, e3.y, e3.z, 0},
+					{0,    0,    0,    1}};
 		MMatrix matrix(d_matrix);
 		if (inverse)
 			matrices[i] = matrix.inverse();
@@ -91,12 +91,12 @@ WrapCudaDeformer::controlsMatrices(const MPointArray &vertices,
 
 void
 WrapCudaDeformer::computeWeights(MPointArray& deformed_points,
-								 float local,
-								 double* distances,
-								 unsigned int deformed_points_count,
-								 unsigned int triangles_count,
-								 MPointArray& ref_vertices,
-								 MMatrixArray& reference_matrices) {
+				float local,
+				double* distances,
+				unsigned int deformed_points_count,
+				unsigned int triangles_count,
+				MPointArray& ref_vertices,
+				MMatrixArray& reference_matrices) {
 	MPoint point;
 	MPoint triangle[3];
 	double weights[deformed_points_count][triangles_count];
@@ -131,121 +131,74 @@ WrapCudaDeformer::computeWeights(MPointArray& deformed_points,
 
 void
 WrapCudaDeformer::computeWeightsCuda(MPointArray& deformed_points,
-								 	float local,
-								 	double* distances,
-								 	unsigned int deformed_points_count,
-								 	unsigned int triangles_count,
-								 	MPointArray& ref_vertices,
-								 	MMatrixArray& reference_matrices) {
+				float local,
+				double* D,
+				unsigned int num_points,
+				unsigned int num_elems,
+				MPointArray& ref_vertices) {
 
-	// convert to the primitive types
-	double deformed_points_cu[deformed_points_count * 3];
+	double P[num_points * 3];
 	MPoint iter_point;
-	for (unsigned int i = 0; i < deformed_points_count; i++) {
+	for (unsigned int i = 0; i < num_points; i++) {
 		iter_point = deformed_points[i];
-		deformed_points_cu[i * 3] = iter_point.x;
-		deformed_points_cu[i * 3 + 1] = iter_point.y;
-		deformed_points_cu[i * 3 + 2] = iter_point.z;
+		P[i * 3] = iter_point.x;
+		P[i * 3 + 1] = iter_point.y;
+		P[i * 3 + 2] = iter_point.z;
 	}
 
-	unsigned int ref_vertices_count = ref_vertices.length();
-	double ref_vertices_cu[ref_vertices_count * 3];
-	for (unsigned int i = 0; i < ref_vertices_count; i++) {
-		ref_vertices_cu[i * 3] = ref_vertices[i].x;
-		ref_vertices_cu[i * 3 + 1] = ref_vertices[i].y;
-		ref_vertices_cu[i * 3 + 2] = ref_vertices[i].z;
+	unsigned int Ridx[num_elems * 3];
+	for (unsigned int i = 0; i < num_elems * 3; i++) {
+		Ridx[i] = triangles_vertices_[i];
 	}
 
-	unsigned int triangles_indices[triangles_count * 3];
-	for (unsigned int i = 0; i < triangles_count * 3; i++) {
-		triangles_indices[i] = triangles_vertices_[i];
+	unsigned int num_refs = ref_vertices.length();
+	double R[num_refs * 3];
+	for (unsigned int i = 0; i < num_refs; i++) {
+		R[i * 3] = ref_vertices[i].x;
+		R[i * 3 + 1] = ref_vertices[i].y;
+		R[i * 3 + 2] = ref_vertices[i].z;
 	}
 
-	double mats[triangles_count * 3 * 3];
-	/*
-	for (unsigned int i = 0; i < triangles_count; i++) {
-		unsigned int idx = i * 9;
-		mats[idx] = reference_matrices[i](0, 0);
-		mats[idx + 1] = reference_matrices[i](0, 1);
-		mats[idx + 2] = reference_matrices[i](0, 2);
-		mats[idx + 3] = reference_matrices[i](1, 0);
-		mats[idx + 4] = reference_matrices[i](1, 1);
-		mats[idx + 5] = reference_matrices[i](1, 2);
-		mats[idx + 6] = reference_matrices[i](2, 0);
-		mats[idx + 7] = reference_matrices[i](2, 1);
-		mats[idx + 8] = reference_matrices[i](2, 2);
+	double C[num_points * num_elems * 3];
+
+	CudaComputeControlPoints(P, Ridx, R, C, num_refs, num_points, num_elems);
+
+	for (unsigned int i = 0; i < num_points; i++) {
+		MPointArray control_points(num_elems);
+		for (unsigned int j = 0; j < num_elems; j++) {
+			unsigned int k = i * num_elems * 3 + j * 3;
+			control_points[j].x = C[k];
+			control_points[j].y = C[k + 1];
+			control_points[j].z = C[k + 2];
+		}
+		points_data_[i].contol_space_points = control_points;
 	}
-	*/
-	double normalised_weights[deformed_points_count * triangles_count];
-	double contol_space_points[deformed_points_count * triangles_count * 3];
 
-	
-	CudaComputeWeights(
-		normalised_weights,
-		contol_space_points,
-		local,
-		distances,
-		deformed_points_cu,
-		deformed_points_count,
-		triangles_count,
-		triangles_indices,
-		ref_vertices_cu,
-		ref_vertices_count,
-		mats
-	);
-	
+	double Wnorm[num_points * num_elems];
 
+	CudaComputeWeights(local, D, Wnorm, num_points, num_elems);
 
-	for (unsigned int i = 0; i < deformed_points_count; i++) {
-		points_data_[i].normalised_weights.resize(triangles_count);
-		for (unsigned int j = 0; j < triangles_count; j++) {
+	for (unsigned int i = 0; i < num_points; i++) {
+		points_data_[i].normalised_weights.resize(num_elems);
+		for (unsigned int j = 0; j < num_elems; j++) {
 			points_data_[i].normalised_weights[j] = (
-				normalised_weights[i * triangles_count + j]
+				Wnorm[i * num_elems + j]
 			);
-			/*
-			points_data_[i].contol_space_points[j].x = contol_space_points[i * j];
-			points_data_[i].contol_space_points[j].y = contol_space_points[i * j + 1];
-			points_data_[i].contol_space_points[j].z = contol_space_points[i * j + 2];
-			*/
 		}
 	}
-
-	for (unsigned int i = 0; i < deformed_points_count; i++) {
-		MPoint point = deformed_points[i];
-		MPointArray contol_space_points(triangles_count);
-		for (unsigned int j = 0; j < triangles_count; j++) {
-			MPoint contol_space_point = point * reference_matrices[j];
-			contol_space_points[j] = contol_space_point;
-		}
-		points_data_[i].contol_space_points = contol_space_points;
-	}
-
-	/*
-	for (unsigned int i = 0; i < deformed_points_count; i++) {
-		MPointArray m_space_points(triangles_count);
-		for (unsigned int j = 0; j < triangles_count; j++) {
-			unsigned int c_offset = i * triangles_count * 3 + j * 3;
-			m_space_points[j].x = contol_space_points[c_offset];
-			m_space_points[j].y = contol_space_points[c_offset + 1];
-			m_space_points[j].z = contol_space_points[c_offset + 2];
-		}
-		points_data_[i].contol_space_points = m_space_points;
-	}
-	*/
-	
 }
 
 
 void
 WrapCudaDeformer::applyWrap(MItGeometry& iter_geo,
-							MPointArray& deformed_points,
-							MPointArray& driver_vertices) {
+			MPointArray& deformed_points,
+			MPointArray& driver_vertices) {
 
 	unsigned int triangles_count = triangles_vertices_.length() / 3;
 	MMatrixArray driver_matrices(triangles_count);
 	driver_matrices = controlsMatrices(driver_vertices,
-									   triangles_vertices_,
-									   false);
+					triangles_vertices_,
+					false);
 
 	for (unsigned int i = 0; i < deformed_points.length(); i++) {
 		MPoint point_deformed(0.0, 0.0, 0.0, 1.0);
@@ -265,72 +218,50 @@ WrapCudaDeformer::applyWrap(MItGeometry& iter_geo,
 
 void
 WrapCudaDeformer::applyWrapCuda(MItGeometry& iter_geo,
-								MPointArray& deformed_points,
-								MPointArray& driver_vertices) {
+				MPointArray& deformed_points,
+				MPointArray& driver_vertices) {
 
 	MStatus status;
-	unsigned int deformed_points_count = deformed_points.length();
+	unsigned int num_points = deformed_points.length();
 	CHECK_MSTATUS(status);
-	unsigned int triangles_count = triangles_vertices_.length() / 3;
+	unsigned int num_elems = triangles_vertices_.length() / 3;
 
-	double points[deformed_points_count * 3];
-	MPoint iter_point;
-	for (unsigned int i = 0; i < deformed_points_count; i++) {
-		iter_point = deformed_points[i];
-		points[i * 3] = iter_point.x;
-		points[i * 3 + 1] = iter_point.y;
-		points[i * 3 + 2] = iter_point.z;
+	unsigned int DRidx[num_elems * 3];
+	for (unsigned int i = 0; i < num_elems * 3; i++) {
+		DRidx[i] = triangles_vertices_[i];
 	}
 
-	unsigned int triangles_indices[triangles_count * 3];
-	for (unsigned int i = 0; i < triangles_count * 3; i++) {
-		triangles_indices[i] = triangles_vertices_[i];
+	unsigned int num_driv = driver_vertices.length();
+	double DR[num_driv * 3];
+	for (unsigned int i = 0; i < num_driv; i++) {
+		DR[i * 3] = driver_vertices[i].x;
+		DR[i * 3 + 1] = driver_vertices[i].y;
+		DR[i * 3 + 2] = driver_vertices[i].z;
 	}
 
-	unsigned int driver_vertices_count = driver_vertices.length();
-	double driver_vertices_cu[driver_vertices_count * 3];
-	for (unsigned int i = 0; i < driver_vertices_count; i++) {
-		driver_vertices_cu[i * 3] = driver_vertices[i].x;
-		driver_vertices_cu[i * 3 + 1] = driver_vertices[i].y;
-		driver_vertices_cu[i * 3 + 2] = driver_vertices[i].z;
-	}
+	double C[num_points * num_elems * 3];
+	double Wnorm[num_points * num_elems];
+	for (unsigned int i = 0; i < num_points; i++) {
+		for (unsigned int j = 0; j < num_elems; j++) {
+			unsigned int offset = i * num_elems + j;
+			Wnorm[offset] = points_data_[i].normalised_weights[j];
 
-	double cs_points[deformed_points_count * triangles_count * 3];
-	double normalised_weights[deformed_points_count * triangles_count];
-	for (unsigned int i = 0; i < deformed_points_count; i++) {
-		for (unsigned int j = 0; j < triangles_count; j++) {
-			unsigned int w_offset = i * triangles_count + j;
-			normalised_weights[w_offset] = points_data_[i].normalised_weights[j];
-
-			unsigned int c_offset = i * triangles_count * 3 + j * 3;
-			cs_points[c_offset] = points_data_[i].contol_space_points[j].x;
-			cs_points[c_offset + 1] = points_data_[i].contol_space_points[j].y;
-			cs_points[c_offset + 2] = points_data_[i].contol_space_points[j].z;
+			unsigned int k = i * num_elems * 3 + j * 3;
+			C[k] = points_data_[i].contol_space_points[j].x;
+			C[k + 1] = points_data_[i].contol_space_points[j].y;
+			C[k + 2] = points_data_[i].contol_space_points[j].z;
 		}
 	}
 
-	double mats[triangles_count * 9];
+	double P[num_points * 3];
 
-	double out_points[deformed_points_count * 3];
-	
-	CudaApplyDeform(
-		out_points,
-		cs_points,
-		points,
-		deformed_points_count,
-		triangles_indices,
-		triangles_count,
-		driver_vertices_cu,
-		driver_vertices_count,
-		normalised_weights,
-		mats
-	);
-	
-	for (unsigned int i = 0; i < deformed_points_count; i++) {
+	CudaApplyDeform(C, Wnorm, DRidx, DR, P, num_driv, num_points, num_elems);
+
+	for (unsigned int i = 0; i < num_points; i++) {
 		MPoint point_deformed(0.0, 0.0, 0.0, 1.0);
-		point_deformed.x = out_points[i * 3];
-		point_deformed.y = out_points[i * 3 + 1];
-		point_deformed.z = out_points[i * 3 + 2];
+		point_deformed.x = P[i * 3];
+		point_deformed.y = P[i * 3 + 1];
+		point_deformed.z = P[i * 3 + 2];
 		deformed_points[i] = point_deformed;
 	}
 	iter_geo.setAllPositions(deformed_points);
@@ -338,9 +269,9 @@ WrapCudaDeformer::applyWrapCuda(MItGeometry& iter_geo,
 
 
 MStatus WrapCudaDeformer::deform(MDataBlock& block,
-								 MItGeometry& iter_geo,
-								 const MMatrix& local_to_world_matrix,
-								 unsigned int geometry_index)
+				MItGeometry& iter_geo,
+				const MMatrix& local_to_world_matrix,
+				unsigned int geometry_index)
 {
 	MStatus status;
 	MDataHandle data_handle;
@@ -366,14 +297,14 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
 		CHECK_MSTATUS(status);
 		MIntArray triangles_in_poly_count;
 		status = reference_surface.getTriangles(triangles_in_poly_count, 
-												triangles_vertices_);
+							triangles_vertices_);
 		CHECK_MSTATUS(status);
 
 		unsigned int triangles_count = triangles_vertices_.length() / 3;
 		MMatrixArray reference_matrices(triangles_count);
 		reference_matrices = controlsMatrices(ref_vertices,
-											  triangles_vertices_,
-											  true);
+						triangles_vertices_,
+						true);
 
 		data_handle = block.inputValue(local_, &status);
 		CHECK_MSTATUS_AND_RETURN_IT(status);
@@ -434,12 +365,11 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
 
 		if (cuda) {
 			computeWeightsCuda(deformed_points, local, distances,
-							   deformed_points_count,
-							   triangles_count, ref_vertices,
-							   reference_matrices);
+					deformed_points_count,
+					triangles_count, ref_vertices);
 		} else {
 			computeWeights(deformed_points, local, distances, deformed_points_count,
-						   triangles_count, ref_vertices, reference_matrices);
+				triangles_count, ref_vertices, reference_matrices);
 		}
 
 		registration_phase_ = false;
@@ -471,40 +401,39 @@ MStatus WrapCudaDeformer::initialize()
 	// Base mesh
 	MFnTypedAttribute t_attr;
 	reference_surface_ = t_attr.create("referenceSurface", 
-									   "referenceSurface", 
-									   MFnMeshData::kMesh);
+					"referenceSurface", 
+					MFnMeshData::kMesh);
 	status = addAttribute(reference_surface_);
 	CHECK_MSTATUS(status);
 	status = attributeAffects(WrapCudaDeformer::reference_surface_, 
-							  WrapCudaDeformer::outputGeom);
+				WrapCudaDeformer::outputGeom);
 	CHECK_MSTATUS(status);
 
 	// Driver mesh
-	driver_surface_ = t_attr.create("driverSurface", 
-									"driverSurface", 
-									MFnMeshData::kMesh);
+	driver_surface_ = t_attr.create("driverSurface", "driverSurface", 
+					MFnMeshData::kMesh);
 	status = addAttribute(driver_surface_);
 	CHECK_MSTATUS(status);
 	status = attributeAffects(WrapCudaDeformer::driver_surface_, 
-							  WrapCudaDeformer::outputGeom);
+				WrapCudaDeformer::outputGeom);
 	CHECK_MSTATUS(status);
 	
 	// Local
 	MFnNumericAttribute n_attr;
 	local_ = n_attr.create("local", "local",
-						   MFnNumericData::kFloat, 3.5);
+				MFnNumericData::kFloat, 3.5);
 	status = addAttribute(local_);
 	CHECK_MSTATUS(status);
 	status = attributeAffects(WrapCudaDeformer::local_, 
-							  WrapCudaDeformer::outputGeom);
+				WrapCudaDeformer::outputGeom);
 
 	// Enable cuda
 	cuda_ = n_attr.create("cuda", "cuda",
-						  MFnNumericData::kBoolean, true);
+				MFnNumericData::kBoolean, true);
 	status = addAttribute(cuda_);
 	CHECK_MSTATUS(status);
 	status = attributeAffects(WrapCudaDeformer::cuda_,
-							  WrapCudaDeformer::outputGeom);
+				WrapCudaDeformer::outputGeom);
 
 	return MStatus::kSuccess;
 }

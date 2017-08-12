@@ -86,7 +86,7 @@ double PointToTriangle(MPoint& pp, MPoint* tri) {
 				s = s * inv_det;
 				t = t * inv_det;
 				sqr_dist = (s * (a * s + b * t + 2 * d) +
-							t * (b * s + c * t + 2 * e) + f);
+					t * (b * s + c * t + 2 * e) + f);
 			}
 		}
 	} else {
@@ -105,7 +105,7 @@ double PointToTriangle(MPoint& pp, MPoint* tri) {
 					s = numer / denom;
 					t = 1-s;
 					sqr_dist = (s * (a * s + b * t + 2 * d) +
-								   t * (b * s + c * t + 2 * e) + f);
+						t * (b * s + c * t + 2 * e) + f);
 				}
 			} else {
 				s = 0;
@@ -138,7 +138,7 @@ double PointToTriangle(MPoint& pp, MPoint* tri) {
 						s = numer / denom;
 						t = 1 - t;
 						sqr_dist = (s * (a * s + b * t + 2 * d) +
-									   t * (b * s + c * t + 2 * e) + f);
+							t * (b * s + c * t + 2 * e) + f);
 					}
 				} else {
 					t = 0;
@@ -172,7 +172,7 @@ double PointToTriangle(MPoint& pp, MPoint* tri) {
 						s = numer/denom;
 						t = 1-s;
 						sqr_dist = (s * (a * s + b * t + 2 * d) +
-									t * (b * s + c * t + 2 * e) + f);
+							t * (b * s + c * t + 2 * e) + f);
 					}
 				}
 			}

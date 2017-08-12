@@ -23,10 +23,10 @@ MStatus initializePlugin(MObject obj)
 	MStatus status;
 	MFnPlugin plugin(obj, "Alexander Mishurov", "0.1", "Any");
 	status = plugin.registerNode("wrapCuda",
-							   WrapCudaDeformer::id,
-							   WrapCudaDeformer::creator,
-							   WrapCudaDeformer::initialize,
-							   MPxNode::kDeformerNode);
+				WrapCudaDeformer::id,
+				WrapCudaDeformer::creator,
+				WrapCudaDeformer::initialize,
+				MPxNode::kDeformerNode);
 	return status;
 }
 
@@ -37,3 +37,4 @@ MStatus uninitializePlugin(MObject obj)
 	status = plugin.deregisterNode(WrapCudaDeformer::id);
 	return status;
 }
+
