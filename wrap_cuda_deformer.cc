@@ -102,7 +102,10 @@ WrapCudaDeformer::computeWeights(MPointArray& deformed_points,
 	double weights[deformed_points_count][triangles_count];
 	double weights_sums[deformed_points_count];
 
-	for (unsigned int i = 0; i < deformed_points_count; i++) {
+	tbb::parallel_for(
+		tbb::blocked_range<size_t>(0, deformed_points_count, 1),
+		[&](const tbb::blocked_range<size_t> &r) { 
+	for (size_t i = r.begin(); i != r.end(); ++i) {
 		point = deformed_points[i];
 		MPointArray contol_space_points(triangles_count);
 		weights_sums[i] = 0;
@@ -117,7 +120,9 @@ WrapCudaDeformer::computeWeights(MPointArray& deformed_points,
 			contol_space_points[j] = contol_space_point;
 		}
 		points_data_[i].contol_space_points = contol_space_points;
+
 	}
+	});
 
 	for (unsigned int i = 0; i < deformed_points_count; i++)
 	{
@@ -200,18 +205,23 @@ WrapCudaDeformer::applyWrap(MItGeometry& iter_geo,
 					triangles_vertices_,
 					false);
 
-	for (unsigned int i = 0; i < deformed_points.length(); i++) {
+	tbb::parallel_for(
+		tbb::blocked_range<size_t>(0, deformed_points.length(), 1),
+		[&](const tbb::blocked_range<size_t> &r) { 
+	for (size_t i = r.begin(); i != r.end(); ++i) {
 		MPoint point_deformed(0.0, 0.0, 0.0, 1.0);
 		for (unsigned int j = 0; j < triangles_count; j++) {
-			MPoint cp = (points_data_[i].contol_space_points[j] *
+			MPoint p = (points_data_[i].contol_space_points[j] *
 						 driver_matrices[j]);
-			cp = cp * points_data_[i].normalised_weights[j];
-			point_deformed.x += cp.x;
-			point_deformed.y += cp.y;
-			point_deformed.z += cp.z;
+			p = p * points_data_[i].normalised_weights[j];
+			point_deformed.x += p.x;
+			point_deformed.y += p.y;
+			point_deformed.z += p.z;
 		}
 		deformed_points[i] = point_deformed;
 	}
+	});
+
 	iter_geo.setAllPositions(deformed_points);
 }
 
@@ -322,7 +332,6 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
 
 		double distances[deformed_points_count * triangles_count];
 
-		/*
 		tbb::parallel_for(
 			tbb::blocked_range<size_t>(0, deformed_points_count, 1),
 			[&](const tbb::blocked_range<size_t> &r) { 
@@ -344,25 +353,7 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
 				}
         	}
 		});
-		*/
-
-		for (unsigned int i = 0; i < deformed_points_count; i++) {
-			MPoint point = deformed_points[i];
-			MPointArray contol_space_points(triangles_count);
-
-			for (unsigned int j = 0; j < triangles_count; j++) {
-				unsigned int index_A = triangles_vertices_[j * 3];
-				unsigned int index_C = triangles_vertices_[j * 3 + 1];
-				unsigned int index_B = triangles_vertices_[j * 3 + 2];
-				MPoint triangle[3];
-				triangle[0] = ref_vertices[index_A];
-				triangle[1] = ref_vertices[index_B];
-				triangle[2] = ref_vertices[index_C];
-				double distance = PointToTriangle(point, triangle);
-				distances[i * triangles_count + j] = distance;
-			}
-		}
-
+	
 		if (cuda) {
 			computeWeightsCuda(deformed_points, local, distances,
 					deformed_points_count,

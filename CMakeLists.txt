@@ -44,8 +44,6 @@ set(LIBRARIES ${LIBRARIES}
     ${OPENGL_LIBRARIES})
 
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-
 set(CUDA_NVCC_FLAGS "-arch=sm_50 -Xcompiler -fPIC")
 
 set(_MAYA_LOCATION
@@ -62,8 +60,10 @@ CUDA_ADD_CUBLAS_TO_TARGET(cuda_ops)
 
 add_library(${_PROJECT} SHARED ${SOURCE_FILES})
 
+set_target_properties(${_PROJECT} PROPERTIES COMPILE_FLAGS
+                      "${CMAKE_CXX_FLAGS} -std=c++11")
+
 target_link_libraries(${_PROJECT} cuda_ops ${LIBRARIES} ${CUDA_LIBRARIES})
-#target_link_libraries(${_PROJECT} ${LIBRARIES})
 
 set_target_properties(${_PROJECT} PROPERTIES
                       COMPILE_DEFINITIONS "${CUSTOM_DEFINITIONS}")

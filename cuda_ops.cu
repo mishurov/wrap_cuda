@@ -1,6 +1,6 @@
-#include "cuda_ops.h"
 #include <stdio.h>
 #include <cublas_v2.h>
+#include "cuda_ops.h"
 
 // kernels
 namespace kernels {
