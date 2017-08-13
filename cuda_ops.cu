@@ -1,4 +1,3 @@
-#include <stdio.h>
 #include <cublas_v2.h>
 #include "cuda_ops.h"
 
@@ -411,6 +410,10 @@ void CudaApplyDeform(double *h_C, double *h_Wnorm, unsigned int *h_DRidx,
 		double *h_DR, double *h_P, unsigned int numDriv,
 		unsigned int numPoints, unsigned int numElems)
 {
+	struct timeval transfer, computation, finish;
+
+	gettimeofday(&transfer, NULL);
+
 	cudaError_t error;
 	unsigned int gridArea = numPoints * numElems;
 	
@@ -465,6 +468,11 @@ void CudaApplyDeform(double *h_C, double *h_Wnorm, unsigned int *h_DRidx,
 		cudaMemcpyHostToDevice);
 
 
+	gettimeofday(&computation, NULL);
+	printf("Runtime in microseconds for transfer %ld\n",
+		computation.tv_usec - transfer.tv_usec);
+
+
 	dim3 threadsMatPerBlock(64, 1);
 	dim3 numMatBlocks(numElems / threadsMatPerBlock.x + 1, 1);
 
@@ -492,6 +500,10 @@ void CudaApplyDeform(double *h_C, double *h_Wnorm, unsigned int *h_DRidx,
 
 	if (error != cudaSuccess)
 		printf("D, dev to host: %s\n", cudaGetErrorString(error));
+
+	gettimeofday(&finish, NULL);
+	printf("Runtime in microseconds for computation %ld\n",
+		finish.tv_usec - computation.tv_usec);
 
 	cudaFree(d_P);
 	cudaFree(d_M);

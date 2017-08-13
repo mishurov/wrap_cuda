@@ -1,6 +1,9 @@
 #ifndef MAYA_CUDA_OPS_H_
 #define MAYA_CUDA_OPS_H_
 
+#include <stdio.h>
+#include <sys/time.h>
+
 int CudaDeviceCount();
 
 void CudaComputeControlPoints(double *P, unsigned int *Ridx, double *R,

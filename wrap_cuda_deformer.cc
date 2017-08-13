@@ -376,11 +376,24 @@ MStatus WrapCudaDeformer::deform(MDataBlock& block,
 	MPointArray driver_vertices;
 	status = driver_surface.getPoints(driver_vertices, MSpace::kWorld);
 	CHECK_MSTATUS_AND_RETURN_IT(status);
+	
+	struct timeval before, after;
+
+	printf("Deformed vertices: %i, Control vertices %i\n",
+		deformed_points.length(), triangles_vertices_.length());
+
+	gettimeofday(&before, NULL);
 
 	if (cuda)
 		applyWrapCuda(iter_geo, deformed_points, driver_vertices);
 	else
 		applyWrap(iter_geo, deformed_points, driver_vertices);
+ 	
+	gettimeofday(&after, NULL);
+
+	printf("Runtime in microseconds for %s deform %ld\n",
+		cuda ? "GPU" : "CPU",
+		after.tv_usec - before.tv_usec);
 
 	return MStatus::kSuccess;
 }

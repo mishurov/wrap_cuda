@@ -38,6 +38,7 @@
 #include <maya/MThreadUtils.h>
 #include <tbb/tbb.h>
 
+
 #include "point_to_triangle.h"
 #include "cuda_ops.h"
 
