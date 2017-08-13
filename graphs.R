@@ -19,18 +19,18 @@ compLabels <- rep("GPU computations", len)
 gpuLabels <- rep("GPU total", len)
 cpuLabels <- rep("CPU total", len)
 
-transferFrame <- data.frame(Type=transfLabels,
-                           Vertices=vertices,
-                           Time=transfVals)
-computationFrame <- data.frame(Type=compLabels,
-                              Vertices=vertices,
-                              Time=compVals)
-gpuFrame <- data.frame(Type=gpuLabels,
-                       Vertices=vertices,
-                       Time=gpuVals)
-cpuFrame <- data.frame(Type=cpuLabels,
-                       Vertices=vertices,
-                       Time=cpuVals)
+transferFrame <- data.frame(Type = transfLabels,
+                           Vertices = vertices,
+                           Time = transfVals)
+computationFrame <- data.frame(Type = compLabels,
+                              Vertices = vertices,
+                              Time = compVals)
+gpuFrame <- data.frame(Type = gpuLabels,
+                       Vertices = vertices,
+                       Time = gpuVals)
+cpuFrame <- data.frame(Type = cpuLabels,
+                       Vertices = vertices,
+                       Time = cpuVals)
 
 
 tt <- rbind(cpuFrame, gpuFrame)
