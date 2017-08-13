@@ -54,10 +54,10 @@ global proc CreateWrapCuda()
   string $reference[] = `duplicate -name ($driverTrans+"Base") $driverTrans`;
   string $referenceTrans = $reference[0];
 
-  string $shapes[] = `ls -dag -shapes $driverTrans`;
-  string $driverShape = $shapes[0];
-  string $shapes[] = `ls -dag -shapes $referenceTrans`;
-  string $referenceShape = $shapes[0];
+  string $dshapes[] = `ls -dag -shapes $driverTrans`;
+  string $driverShape = $dshapes[0];
+  string $rshapes[] = `ls -dag -shapes $referenceTrans`;
+  string $referenceShape = $rshapes[0];
 
   $wraps = `deformer -type wrapCuda $deformedTrans`;
   $wrapCuda = $wraps[0];

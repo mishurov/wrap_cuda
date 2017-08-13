@@ -14,15 +14,29 @@
  * limitations under the License.
  * ************************************************************************/
 
-global proc TestWrapCuda()
+proc CreateCubeSphere(int $sd, int $cd)
 {
-  unloadPlugin "wrap_cuda_deformer";
-  loadPlugin "wrap_cuda_deformer";
-  polyCube -depth 2.1 -height 2.1 -width 2.1 -name "testCube";
+  polyCube -d 2.1 -h 2.1 -w 2.1 -sx $cd -sy $cd -sz $cd -name "testCube";
   setAttr "testCubeShape.overrideEnabled" 1;
   setAttr "testCubeShape.overrideShading" 0;
-  polySphere -name "testSphere";
+  polySphere -name "testSphere" -sx $sd -sy $sd;
   select "testSphere";
   select -add "testCube";
   CreateWrapCuda;
-}
+};
+
+proc DeleteCubeSphere()
+{
+  select -r testCube testSphere testCubeShape testSphereShape;
+  select -add polyCube1 polySphere1 wrapCuda1;
+  delete;
+};
+
+global proc TestWrapCuda(int $cd)
+{
+  unloadPlugin "wrap_cuda_deformer";
+  loadPlugin "wrap_cuda_deformer";
+  CreateCubeSphere($cd, 1);
+};
+
+
