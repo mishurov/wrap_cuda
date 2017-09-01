@@ -30,9 +30,9 @@ find_package(CUDA REQUIRED)
 
 
 set(SOURCE_FILES
-    "point_to_triangle.cc"
-    "wrap_cuda_deformer.cc"
-    "wrap_cuda_main.cc"
+    "utils/point_to_triangle.cc"
+    "maya/wrap_cuda_deformer.cc"
+    "maya/wrap_cuda_main.cc"
 )
 
 set(LIBRARIES ${LIBRARIES}
@@ -51,11 +51,15 @@ set(_MAYA_LOCATION
 set(_PROJECT ${PROJECT_NAME})
 
 include_directories(${_MAYA_LOCATION}/${MAYA_INC_SUFFIX}
-                    ${OPENGL_INCLUDE_DIRS} ${GLUT_INCLUDE_DIRS})
+                    "${CMAKE_CURRENT_BINARY_DIR}/maya"
+                    "${CMAKE_CURRENT_BINARY_DIR}/utils"
+                    "${CMAKE_CURRENT_BINARY_DIR}/cuda"
+                    ${OPENGL_INCLUDE_DIRS}
+                    ${GLUT_INCLUDE_DIRS})
 
 link_directories(${_MAYA_LOCATION}/${MAYA_LIB_SUFFIX})
 
-cuda_add_library(cuda_ops STATIC "cuda_ops.cu")
+cuda_add_library(cuda_ops STATIC "cuda/cuda_ops.cu")
 CUDA_ADD_CUBLAS_TO_TARGET(cuda_ops)
 
 add_library(${_PROJECT} SHARED ${SOURCE_FILES})
