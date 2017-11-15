@@ -3,7 +3,7 @@ WrapCudaDeformer
 
 A Proof of Concept deformer node, Autodesk® Maya® Plugin.
 
-![ScreenShot](http://mishurov.usite.pro/github/wrap_cuda/wrap.png)
+![ScreenShot](http://mishurov.co.uk/images/github/wrap_cuda/wrap.png)
 
 ## Warning
 The plug-in isn't intended for production use, it's highly unstable: crashes on heavy geometry, doesn't handle exceptions, uses blocked ranges, etc.
@@ -19,11 +19,11 @@ https://www.geometrictools.com/Documentation/DistancePoint3Triangle3.pdf
 ### Asymptotics
 The testing data was quite small, nonetheless it gave some insights. At first glance, the GPU mode doesn't perform well in comparison to its CPU counterpart.   
 
-![ScreenShot](http://mishurov.usite.pro/github/wrap_cuda/total.png)
+![ScreenShot](http://mishurov.co.uk/images/github/wrap_cuda/total.png)
 
 However, it seems that the bottleneck is the memory allocations on a GPU and the data transfers between a GPU and a CPU. The actual computations on a GPU increase with the noticeable lower rate than on a CPU. In the current implementation the CUDA part allocates, transfers and frees all necessary data on every call during the deformation. Static data storage for pointers to device memory or using Unified Memory can solve the problem. 
 
-![ScreenShot](http://mishurov.usite.pro/github/wrap_cuda/separate.png)
+![ScreenShot](http://mishurov.co.uk/images/github/wrap_cuda/separate.png)
 
 
 The repository contains a csv file with the benchmarks and a simple R script for plotting the data.
