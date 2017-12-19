@@ -26,5 +26,5 @@ However, it seems that the bottleneck is the memory allocations on a GPU and the
 ![ScreenShot](http://mishurov.co.uk/images/github/wrap_cuda/separate.png)
 
 
-The repository contains a csv file with the benchmarks and a simple R script for plotting the data.
+The repository contains a csv file with the benchmarks, either R (ggplot) or python (matplotlib) script can be used in order to visualise the data as plots.
 
